@@ -1,4 +1,4 @@
-from app.core.storage import minio_client
+from app.api.dependencies.storage import minio_client
 from app.core.config import settings
 from fastapi import UploadFile
 import uuid
