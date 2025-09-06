@@ -1,6 +1,9 @@
 from pydantic import BaseModel
 from typing import List
 
+from app.db.models.friend import Friend
+from app.schemas.friend import FriendRead
+
 class Variation(BaseModel):
 	variation_name: str
 	price: float
@@ -20,12 +23,13 @@ class ReceiptBase(BaseModel):
 	items: List[Item]
 
 class ReceiptCreate(ReceiptBase):
-	pass
+	friend_ids: List[int]
 
 class ReceiptRead(ReceiptBase):
 	id: int
 	user_id: int
 	receipt_url: str
+	friends: List[FriendRead]
 	
 	class Config:
 		from_attributes = True

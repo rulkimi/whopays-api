@@ -11,3 +11,4 @@ class Friend(Base, AuditMixin):
 	user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
 	user = relationship("User", back_populates="friends")
+	shared_receipts = relationship("ReceiptFriend", back_populates="friend")

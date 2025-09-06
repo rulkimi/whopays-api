@@ -12,3 +12,4 @@ pydantic[email]
 python-multipart
 google-genai
 pillow
+minio

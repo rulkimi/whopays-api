@@ -5,6 +5,7 @@ from app.schemas.receipt import ReceiptBase, ReceiptRead
 from app.db.models.receipt import Receipt
 from app.db.models.item import Item
 from app.db.models.variation import Variation
+from app.services.receipt_friend_services import add_friends_to_receipt
 from typing import List, Optional
 
 def analyze_receipt(image_data: bytes) -> ReceiptBase:
@@ -15,8 +16,8 @@ def analyze_receipt(image_data: bytes) -> ReceiptBase:
 	# Convert the dictionary response to ReceiptBase model
 	return ReceiptBase(**ai_response_dict)
 
-def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: int, receipt_url: str = "") -> ReceiptRead:
-	"""Create a receipt with all its items and variations in the database"""
+def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: int, receipt_url: str = "", friend_ids: List[int] = None) -> dict:
+	"""Create a receipt with all its items and variations in the database, and return the receipt info including friend objects"""
 	
 	db_receipt = Receipt(
 		restaurant_name=receipt_data.restaurant_name,
@@ -52,17 +53,39 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 	db.commit()
 	db.refresh(db_receipt)
 	
-	return ReceiptRead(
-		id=db_receipt.id,
-		user_id=db_receipt.user_id,
-		receipt_url=receipt_url,
-		restaurant_name=db_receipt.restaurant_name,
-		total_amount=db_receipt.total_amount,
-		tax=db_receipt.tax,
-		service_charge=db_receipt.service_charge,
-		currency=db_receipt.currency,
-		items=receipt_data.items  
-	)
+	# Associate friends with the receipt if provided
+	if friend_ids:
+		add_friends_to_receipt(db, db_receipt.id, friend_ids, user_id)
+	else:
+		friend_ids = []
+
+	# Get the full friend objects associated with this receipt
+	friends = []
+	if friend_ids:
+		from app.db.models.friend import Friend
+		friends = db.query(Friend).filter(Friend.id.in_(friend_ids)).all()
+		# Convert SQLAlchemy objects to dicts
+		friends = [
+			{
+				"id": friend.id,
+				"photo_url": friend.photo_url,
+				"user_id": friend.user_id
+			}
+			for friend in friends
+		]
+
+	return {
+		"id": db_receipt.id,
+		"user_id": db_receipt.user_id,
+		"receipt_url": receipt_url,
+		"restaurant_name": db_receipt.restaurant_name,
+		"total_amount": db_receipt.total_amount,
+		"tax": db_receipt.tax,
+		"service_charge": db_receipt.service_charge,
+		"currency": db_receipt.currency,
+		"items": receipt_data.items,
+		"friends": friends
+	}
 
 def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[ReceiptRead]:
 	"""Get a receipt by ID for a specific user"""

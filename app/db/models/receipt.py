@@ -17,3 +17,4 @@ class Receipt(Base, AuditMixin):
 
 	items = relationship("Item", back_populates="receipt")
 	user = relationship("User", back_populates="receipts")
+	friends = relationship("ReceiptFriend", back_populates="receipt")
