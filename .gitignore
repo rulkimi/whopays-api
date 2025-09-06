@@ -1,0 +1,58 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info/
+*.eggs/
+*.manifest
+*.spec
+
+# --- Virtual Environments ---
+venv/
+env/
+.venv/
+.envrc
+
+# --- Environment & Secrets ---
+.env
+*.env
+
+# --- Alembic ---
+*.db
+*.sqlite
+
+# --- Logs ---
+*.log
+logs/
+
+# --- IDE & Editor Files ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# --- Testing & Coverage ---
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+.mypy_cache/
+pytestdebug.log
+
+# --- Build & Packaging ---
+build/
+dist/
+*.lock
+*.bak
+
+# --- Docker ---
+*.pid
+*.sock
+docker-compose.override.yml
+
+# --- Misc ---
+__pypackages__/
+site/
