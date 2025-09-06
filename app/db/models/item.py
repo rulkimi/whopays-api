@@ -10,7 +10,7 @@ class Item(Base, AuditMixin):
 	quantity = Column(Integer, nullable=False)
 	unit_price = Column(Float, nullable=False)
 
-	receipt_id = Column(Integer, ForeignKey("receipts.id"), nullable=False, index=True)
+	receipt_id = Column(Integer, ForeignKey("receipts.id", ondelete="CASCADE"), nullable=False, index=True)
 
 	variations = relationship("Variation", back_populates="item")
 	receipt = relationship("Receipt", back_populates="items")

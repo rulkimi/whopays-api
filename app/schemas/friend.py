@@ -1,6 +1,7 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class FriendBase(BaseModel):
+	name: str = Field(..., max_length=50)
 	photo_url: str
 
 class FriendCreate(FriendBase):

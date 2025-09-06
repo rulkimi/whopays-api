@@ -7,8 +7,9 @@ class Friend(Base, AuditMixin):
 	__tablename__ = "friends" 
 
 	id = Column(Integer, primary_key=True, index=True)
+	name = Column(String(50), nullable=False)
 	photo_url = Column(String, index=True)
-	user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-	user = relationship("User", back_populates="friends")
-	shared_receipts = relationship("ReceiptFriend", back_populates="friend")
+	user = relationship("User", back_populates="friends", lazy="select")
+	shared_receipts = relationship("ReceiptFriend", back_populates="friend", cascade="all, delete-orphan")

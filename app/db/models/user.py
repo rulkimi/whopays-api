@@ -11,5 +11,5 @@ class User(Base, AuditMixin):
   is_active = Column(Boolean, default=True)
   is_superuser = Column(Boolean, default=False)
 
-  friends = relationship("Friend", back_populates="user")
-  receipts = relationship("Receipt", back_populates="user")
+  friends = relationship("Friend", back_populates="user", cascade="all, delete-orphan")
+  receipts = relationship("Receipt", back_populates="user", cascade="all, delete-orphan")

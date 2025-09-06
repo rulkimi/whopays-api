@@ -13,8 +13,8 @@ class Receipt(Base, AuditMixin):
 	currency = Column(String, index=True, nullable=False)
 	receipt_url = Column(String, index=True)
 
-	user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
-	items = relationship("Item", back_populates="receipt")
+	items = relationship("Item", back_populates="receipt", cascade="all, delete-orphan")
 	user = relationship("User", back_populates="receipts")
-	friends = relationship("ReceiptFriend", back_populates="receipt")
+	friends = relationship("ReceiptFriend", back_populates="receipt", cascade="all, delete-orphan")

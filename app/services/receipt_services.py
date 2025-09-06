@@ -68,6 +68,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 		friends = [
 			{
 				"id": friend.id,
+				"name": friend.name,
 				"photo_url": friend.photo_url,
 				"user_id": friend.user_id
 			}
