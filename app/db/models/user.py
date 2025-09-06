@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Boolean
-from app.db.base_class import Base  
-class User(Base):
+from sqlalchemy.orm import relationship
+from app.db.base_class import AuditMixin, Base
+
+class User(Base, AuditMixin):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -8,3 +10,5 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+
+    friends = relationship("Friend", back_populates="user")

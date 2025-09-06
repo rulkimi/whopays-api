@@ -1,9 +1,11 @@
 # app/main.py
 from fastapi import FastAPI
-from app.api.endpoints import auth, user, ai
+from app.api.endpoints import auth, user, ai, friend
 
 app = FastAPI()
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
+app.include_router(friend.router, prefix="/friends", tags=["friends"])
+
 app.include_router(ai.router, prefix="/ai", tags=["playground"])
