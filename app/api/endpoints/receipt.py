@@ -13,7 +13,7 @@ from typing import List
 router = APIRouter()
 
 @router.post("/", status_code=201, response_model=ReceiptRead)
-async def analyze_receipt_endpoint(
+async def upload_and_analyze_receipt_image(
 	file: UploadFile = File(...),
 	friend_ids: List[int] = [],
 	db: Session = Depends(get_db),
@@ -42,7 +42,7 @@ async def analyze_receipt_endpoint(
 	return receipt_read
 
 @router.get("/{receipt_id}", response_model=ReceiptRead)
-async def get_receipt(
+async def retrieve_receipt_by_id(
 	receipt_id: int,
 	db: Session = Depends(get_db),
 	current_user: User = Depends(get_current_user)
@@ -54,7 +54,7 @@ async def get_receipt(
 	return receipt
 
 @router.get("/", response_model=List[ReceiptRead])
-async def get_receipts(
+async def list_user_receipts(
 	skip: int = 0,
 	limit: int = 100,
 	db: Session = Depends(get_db),
@@ -64,7 +64,7 @@ async def get_receipts(
 	return get_user_receipts(db, current_user.id, skip, limit)
 
 @router.delete("/{receipt_id}")
-async def delete_receipt_endpoint(
+async def soft_delete_receipt_by_id(
 	receipt_id: int,
 	db: Session = Depends(get_db),
 	current_user: User = Depends(get_current_user)
@@ -76,7 +76,7 @@ async def delete_receipt_endpoint(
 	return {"message": "Receipt deleted successfully"}
 
 @router.post("/{receipt_id}/friends")
-async def add_friends_to_receipt_endpoint(
+async def add_friends_to_receipt_by_id(
 	receipt_id: int,
 	friend_ids: List[int],
 	db: Session = Depends(get_db),
@@ -89,7 +89,7 @@ async def add_friends_to_receipt_endpoint(
 	return {"message": "Friends added to receipt successfully"}
 
 @router.delete("/{receipt_id}/friends")
-async def remove_friends_from_receipt_endpoint(
+async def remove_friends_from_receipt_by_id(
 	receipt_id: int,
 	friend_ids: List[int],
 	db: Session = Depends(get_db),
@@ -102,7 +102,7 @@ async def remove_friends_from_receipt_endpoint(
 	return {"message": "Friends removed from receipt successfully"}
 
 @router.get("/{receipt_id}/friends")
-async def get_receipt_friends_endpoint(
+async def list_friends_for_receipt(
 	receipt_id: int,
 	db: Session = Depends(get_db),
 	current_user: User = Depends(get_current_user)
@@ -112,7 +112,7 @@ async def get_receipt_friends_endpoint(
 	return friends
 
 @router.put("/{receipt_id}/friends")
-async def update_receipt_friends_endpoint(
+async def replace_receipt_friends_by_id(
 	receipt_id: int,
 	friend_ids: List[int],
 	db: Session = Depends(get_db),
