@@ -1,15 +1,15 @@
 from pydantic import BaseModel, EmailStr
 
 class UserBase(BaseModel):
-    email: EmailStr
-    is_active: bool = True
-    is_superuser: bool = False
+  email: EmailStr
+  is_active: bool = True
+  is_superuser: bool = False
 
 class UserCreate(UserBase):
-    password: str
+  password: str
 
 class UserRead(UserBase):
-    id: int
+  id: int
 
-    class Config:
-        from_attributes = True
+  class Config:
+    from_attributes = True
