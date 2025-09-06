@@ -4,6 +4,7 @@ from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.database import get_db
 from app.services.receipt_services import analyze_receipt, create_receipt_with_items, get_receipt_by_id, get_user_receipts, delete_receipt
 from app.services.receipt_friend_services import add_friends_to_receipt, remove_friends_from_receipt, get_receipt_friends, update_receipt_friends
+from app.services.file_services import upload_file
 from app.schemas.receipt import ReceiptRead
 from app.db.models.user import User
 from PIL import Image
@@ -29,13 +30,19 @@ async def upload_and_analyze_receipt_image(
 	except Exception:
 		raise HTTPException(status_code=400, detail="Invalid image file.")
 	
+	# Reset file pointer for upload
+	file.file.seek(0)
+	
+	# Upload image to MinIO
+	receipt_url = upload_file(file, "receipts")
+	
 	receipt_data = analyze_receipt(image)
 	
 	receipt_read = create_receipt_with_items(
 		db=db,
 		receipt_data=receipt_data,
 		user_id=current_user.id,
-		receipt_url="",  # TODO: store receipt url
+		receipt_url=receipt_url,
 		friend_ids=friend_ids
 	)
 	

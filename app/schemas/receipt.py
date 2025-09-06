@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 from app.db.models.friend import Friend
 from app.schemas.friend import FriendRead
@@ -28,7 +28,7 @@ class ReceiptCreate(ReceiptBase):
 class ReceiptRead(ReceiptBase):
 	id: int
 	user_id: int
-	receipt_url: str
+	receipt_url: Optional[str]
 	friends: List[FriendRead]
 	
 	class Config:
