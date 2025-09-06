@@ -5,7 +5,7 @@ from app.api.dependencies.database import get_db
 from sqlalchemy.orm import Session
 from app.db.models.user import User
 from app.api.dependencies.auth import get_current_user
-from app.schemas.receipt import Receipt
+from app.schemas.receipt import ReceiptBase
 from PIL import Image
 import io
 
@@ -49,7 +49,7 @@ async def analysis_receipt(file: UploadFile = File(...)):
 	except Exception:
 		raise HTTPException(status_code=400, detail="Invalid image file.")
 	prompt = create_analysis_prompt()
-	ai_response = get_ai_response(contents=[prompt, image], response_schema=Receipt)
+	ai_response = get_ai_response(contents=[prompt, image], response_schema=ReceiptBase)
 	return {
 		"filename": file.filename,
 		"size": len(image_data),

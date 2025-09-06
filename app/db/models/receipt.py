@@ -11,6 +11,7 @@ class Receipt(Base, AuditMixin):
 	tax = Column(Float, nullable=False)
 	service_charge = Column(Float, nullable=False)
 	currency = Column(String, index=True, nullable=False)
+	receipt_url = Column(String, index=True)
 
 	user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
 
