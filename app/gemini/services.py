@@ -12,6 +12,4 @@ def get_ai_response(contents: str, response_schema: dict = None) -> str:
         contents=contents,
         config=config,
     )
-    response_json = json.loads(response.text)
-    print(response.text)
-    return response_json["message"]
+    return json.loads(response.text)

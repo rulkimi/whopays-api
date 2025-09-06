@@ -11,3 +11,4 @@ pydantic-settings
 pydantic[email]
 python-multipart
 google-genai
+pillow
