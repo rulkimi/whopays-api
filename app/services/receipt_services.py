@@ -125,7 +125,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 					"variation_name": var.variation_name,
 					"price": var.price
 				} for var in variations
-			] if variations else None,
+			] if variations else [],
 			"friends": item_friends
 		}
 		items_data.append(item_data)
@@ -135,8 +135,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 	from app.db.models.friend import Friend
 	
 	receipt_friends = db.query(ReceiptFriend).filter(
-		ReceiptFriend.receipt_id == receipt_id,
-		ReceiptFriend.is_deleted == False
+		ReceiptFriend.receipt_id == receipt_id
 	).all()
 	
 	friend_ids = [rf.friend_id for rf in receipt_friends]
