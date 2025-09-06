@@ -2,7 +2,7 @@ from pydantic import BaseModel
 from typing import List
 
 class Variation(BaseModel):
-  name: str
+  variation_name: str
   price: float
 
 class Item(BaseModel):
