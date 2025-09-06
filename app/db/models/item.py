@@ -14,3 +14,4 @@ class Item(Base, AuditMixin):
 
 	variations = relationship("Variation", back_populates="item")
 	receipt = relationship("Receipt", back_populates="items")
+	item_friends = relationship("ItemFriend", back_populates="item", cascade="all, delete-orphan")

@@ -13,6 +13,7 @@ class Item(BaseModel):
 	quantity: int
 	unit_price: float
 	variation: List[Variation] = None
+	friends: List[FriendRead] = []
 
 class ReceiptBase(BaseModel):
 	restaurant_name: str

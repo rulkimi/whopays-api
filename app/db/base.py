@@ -5,3 +5,4 @@ from app.db.models.variation import Variation
 from app.db.models.item import Item
 from app.db.models.receipt import Receipt
 from app.db.models.receipt_friend import ReceiptFriend
+from app.db.models.item_friend import ItemFriend

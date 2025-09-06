@@ -6,6 +6,7 @@ from app.db.models.receipt import Receipt
 from app.db.models.item import Item
 from app.db.models.variation import Variation
 from app.services.receipt_friend_services import add_friends_to_receipt
+from app.services.item_friend_services import get_item_friends
 from typing import List, Optional
 
 def analyze_receipt(image_data: bytes) -> ReceiptBase:
@@ -112,6 +113,9 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 			Variation.is_deleted == False
 		).all()
 		
+		# Get friends for this item
+		item_friends = get_item_friends(db, item.id, user_id)
+		
 		item_data = {
 			"item_name": item.item_name,
 			"quantity": item.quantity,
@@ -121,7 +125,8 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 					"variation_name": var.variation_name,
 					"price": var.price
 				} for var in variations
-			] if variations else None
+			] if variations else None,
+			"friends": item_friends
 		}
 		items_data.append(item_data)
 	

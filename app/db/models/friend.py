@@ -13,3 +13,4 @@ class Friend(Base, AuditMixin):
 
 	user = relationship("User", back_populates="friends", lazy="select")
 	shared_receipts = relationship("ReceiptFriend", back_populates="friend", cascade="all, delete-orphan")
+	item_friends = relationship("ItemFriend", back_populates="friend", cascade="all, delete-orphan")
