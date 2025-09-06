@@ -1,12 +1,16 @@
 from sqlalchemy.orm import Session
+from fastapi import UploadFile
 from app.db.models.friend import Friend
-from app.schemas.friend import FriendCreate
+from app.services.file_services import upload_file
 
-def create_friend(db: Session, friend_data: FriendCreate, user_id: int):
+def create_friend(db: Session, name: str, photo: UploadFile, user_id: int):
+	# Upload photo to MinIO and get the URL
+	photo_url = upload_file(photo, "friends")
+	
 	friend = Friend(
 		user_id=user_id,
-		name=friend_data.name,
-		photo_url=friend_data.photo_url
+		name=name,
+		photo_url=photo_url
 	)
 	db.add(friend)
 	db.commit()
@@ -40,12 +44,16 @@ def delete_friend(db: Session, friend_id: int, user_id: int):
 	db.commit()
 	return friend
 
-def edit_friend(db: Session, friend_id: int, friend_data: FriendCreate, user_id: int):
+def edit_friend(db: Session, friend_id: int, name: str, photo: UploadFile, user_id: int):
 	friend = db.query(Friend).filter_by(id=friend_id, user_id=user_id).first()
 	if not friend:
 		return None
-	friend.name = friend_data.name
-	friend.photo_url = friend_data.photo_url
+	
+	# Upload new photo to MinIO and get the URL
+	photo_url = upload_file(photo, "friends")
+	
+	friend.name = name
+	friend.photo_url = photo_url
 	db.commit()
 	db.refresh(friend)
 	return friend

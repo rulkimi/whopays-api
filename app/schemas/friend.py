@@ -1,15 +1,10 @@
 from pydantic import BaseModel, Field
 
-class FriendBase(BaseModel):
-	name: str = Field(..., max_length=50)
-	photo_url: str
-
-class FriendCreate(FriendBase):
-	pass
-
-class FriendRead(FriendBase):
+class FriendRead(BaseModel):
 	id: int
 	user_id: int
+	name: str = Field(..., max_length=50)
+	photo_url: str
 
 	class Config:
 		from_attributes = True

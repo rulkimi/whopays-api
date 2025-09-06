@@ -1,22 +1,23 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from app.api.dependencies.database import get_db
 from app.api.dependencies.auth import get_current_user
 from app.services import friend_services
-from app.schemas.friend import FriendCreate, FriendRead
+from app.schemas.friend import FriendRead
 
 router = APIRouter()
 
 @router.post("/", status_code=201, response_model=FriendRead)
 def add_friend(
-	friend_data: FriendCreate,
+	name: str = Form(...),
+	photo: UploadFile = File(...),
 	db: Session = Depends(get_db),
 	current_user=Depends(get_current_user)
 ):
 	"""
-	Add a friend for the current user using FriendCreate schema.
+	Add a friend for the current user with photo upload.
 	"""	
-	friend = friend_services.create_friend(db, friend_data, current_user.id)
+	friend = friend_services.create_friend(db, name, photo, current_user.id)
 	return friend
 
 @router.get("/", response_model=list[FriendRead])
@@ -47,14 +48,15 @@ def delete_friend(
 @router.put("/{friend_id}", response_model=FriendRead)
 def edit_friend(
 	friend_id: int,
-	friend_data: FriendCreate,
+	name: str = Form(...),
+	photo: UploadFile = File(...),
 	db: Session = Depends(get_db),
 	current_user=Depends(get_current_user)
 ):
 	"""
-	Edit a friend's information.
+	Edit a friend's information with photo upload.
 	"""
-	friend = friend_services.edit_friend(db, friend_id, friend_data, current_user.id)
+	friend = friend_services.edit_friend(db, friend_id, name, photo, current_user.id)
 	if not friend:
 		raise HTTPException(status_code=404, detail="Friend not found")
 	return friend
