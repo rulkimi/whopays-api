@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from .mixin import TimestampModel
 from typing import List, Optional
 
 from app.db.models.friend import Friend
@@ -9,13 +10,14 @@ class Variation(BaseModel):
 	price: float
 
 class Item(BaseModel):
+	item_id: int
 	item_name: str
 	quantity: int
 	unit_price: float
 	variation: List[Variation] = None
 	friends: List[FriendRead] = []
 
-class ReceiptBase(BaseModel):
+class ReceiptBase(TimestampModel):
 	restaurant_name: str
 	total_amount: float
 	tax: float

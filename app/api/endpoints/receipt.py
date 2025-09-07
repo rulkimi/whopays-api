@@ -45,6 +45,7 @@ async def upload_and_analyze_receipt_image(
 		receipt_url=receipt_url,
 		friend_ids=friend_ids
 	)
+  
 	
 	return receipt_read
 

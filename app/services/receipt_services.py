@@ -33,6 +33,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 	db.add(db_receipt)
 	db.flush()  # Flush to get the receipt ID
 	
+	item_objs = []
 	for item_data in receipt_data.items:
 		db_item = Item(
 			item_name=item_data.item_name,
@@ -42,6 +43,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 		)
 		db.add(db_item)
 		db.flush()  # Flush to get the item ID
+		item_objs.append((db_item, item_data))
 		
 		if item_data.variation:
 			for variation_data in item_data.variation:
@@ -76,6 +78,27 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 			}
 			for friend in friends
 		]
+
+	# Build items with item_id, created_at, updated_at
+	items = []
+	for db_item, item_data in item_objs:
+		item_dict = {
+			"item_id": db_item.id,
+			"item_name": db_item.item_name,
+			"quantity": db_item.quantity,
+			"unit_price": db_item.unit_price,
+			"variation": [
+				{
+					"variation_name": v.variation_name,
+					"price": v.price
+				}
+				for v in db_item.variation if not getattr(v, "is_deleted", False)
+			] if hasattr(db_item, "variation") and db_item.variation else [],
+			"friends": [],  # No friends at creation
+			"created_at": db_item.created_at,
+			"updated_at": db_item.updated_at
+		}
+		items.append(item_dict)
 
 	return {
 		"id": db_receipt.id,
@@ -117,6 +140,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 		item_friends = get_item_friends(db, item.id, user_id)
 		
 		item_data = {
+			"item_id": item.id,
 			"item_name": item.item_name,
 			"quantity": item.quantity,
 			"unit_price": item.unit_price,
@@ -126,10 +150,12 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 					"price": var.price
 				} for var in variations
 			] if variations else [],
-			"friends": item_friends
+			"friends": item_friends,
+			"created_at": item.created_at,
+			"updated_at": item.updated_at
 		}
 		items_data.append(item_data)
-	
+
 	# Get friends associated with this receipt
 	from app.db.models.receipt_friend import ReceiptFriend
 	from app.db.models.friend import Friend
@@ -161,6 +187,8 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 		tax=receipt.tax,
 		service_charge=receipt.service_charge,
 		currency=receipt.currency,
+		created_at=receipt.created_at,
+		updated_at=receipt.updated_at,
 		items=items_data,
 		friends=friends
 	)
