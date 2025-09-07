@@ -7,7 +7,7 @@ from app.schemas.friend import FriendRead
 
 router = APIRouter()
 
-@router.post("/", status_code=201, response_model=FriendRead)
+@router.post("", status_code=201, response_model=FriendRead)
 def add_friend(
 	name: str = Form(...),
 	photo: UploadFile = File(...),
@@ -20,7 +20,7 @@ def add_friend(
 	friend = friend_services.create_friend(db, name, photo, current_user.id)
 	return friend
 
-@router.get("/", response_model=list[FriendRead])
+@router.get("", response_model=list[FriendRead])
 def get_friends(
 	db: Session = Depends(get_db),
 	current_user=Depends(get_current_user)

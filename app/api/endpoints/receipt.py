@@ -13,7 +13,7 @@ from typing import List
 
 router = APIRouter()
 
-@router.post("/", status_code=201, response_model=ReceiptRead)
+@router.post("", status_code=201, response_model=ReceiptRead)
 async def upload_and_analyze_receipt_image(
 	file: UploadFile = File(...),
 	friend_ids: List[int] = [],
@@ -61,7 +61,7 @@ async def retrieve_receipt_by_id(
 		raise HTTPException(status_code=404, detail="Receipt not found")
 	return receipt
 
-@router.get("/", response_model=List[ReceiptRead])
+@router.get("", response_model=List[ReceiptRead])
 async def list_user_receipts(
 	skip: int = 0,
 	limit: int = 100,
