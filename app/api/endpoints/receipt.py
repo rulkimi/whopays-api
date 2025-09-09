@@ -29,10 +29,9 @@ async def upload_and_analyze_receipt_image(
 		image = Image.open(io.BytesIO(image_data))
 	except Exception:
 		raise HTTPException(status_code=400, detail="Invalid image file.")
-	
+  
 	# Reset file pointer for upload
 	file.file.seek(0)
-	
 	# Upload image to MinIO
 	receipt_url = upload_file(file, "receipts")
 	
@@ -45,7 +44,6 @@ async def upload_and_analyze_receipt_image(
 		receipt_url=receipt_url,
 		friend_ids=friend_ids
 	)
-  
 	
 	return receipt_read
 

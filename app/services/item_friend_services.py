@@ -4,6 +4,8 @@ from app.db.models.item import Item
 from app.db.models.friend import Friend
 from typing import List, Optional
 
+from app.services.file_services import generate_presigned_url
+
 def add_friends_to_item(db: Session, item_id: int, friend_ids: List[int], user_id: int) -> bool:
 	"""Add friends to an item"""
 	try:
@@ -87,7 +89,7 @@ def get_item_friends(db: Session, item_id: int, user_id: int) -> List[dict]:
 		friends.append({
 			"id": friend.id,
 			"name": friend.name,
-			"photo_url": friend.photo_url,
+			"photo_url": generate_presigned_url(friend.photo_url),
 			"user_id": friend.user_id
 		})
 	

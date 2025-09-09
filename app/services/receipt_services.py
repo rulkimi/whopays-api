@@ -7,6 +7,7 @@ from app.db.models.item import Item
 from app.db.models.variation import Variation
 from app.services.receipt_friend_services import add_friends_to_receipt
 from app.services.item_friend_services import get_item_friends
+from app.services.file_services import generate_presigned_url
 from typing import List, Optional
 
 def analyze_receipt(image_data: bytes) -> ReceiptBase:
@@ -73,7 +74,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 			{
 				"id": friend.id,
 				"name": friend.name,
-				"photo_url": friend.photo_url,
+				"photo_url": generate_presigned_url(friend.photo_url),
 				"user_id": friend.user_id
 			}
 			for friend in friends
@@ -103,12 +104,14 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 	return {
 		"id": db_receipt.id,
 		"user_id": db_receipt.user_id,
-		"receipt_url": db_receipt.receipt_url,
+		"receipt_url": generate_presigned_url(db_receipt.receipt_url),
 		"restaurant_name": db_receipt.restaurant_name,
 		"total_amount": db_receipt.total_amount,
 		"tax": db_receipt.tax,
 		"service_charge": db_receipt.service_charge,
 		"currency": db_receipt.currency,
+		"created_at": db_receipt.created_at,
+		"updated_at": db_receipt.updated_at,
 		"items": receipt_data.items,
 		"friends": friends
 	}
@@ -172,7 +175,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 			{
 				"id": friend.id,
 				"name": friend.name,
-				"photo_url": friend.photo_url,
+				"photo_url": generate_presigned_url(friend.photo_url),
 				"user_id": friend.user_id
 			}
 			for friend in friends
@@ -181,7 +184,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 	return ReceiptRead(
 		id=receipt.id,
 		user_id=receipt.user_id,
-		receipt_url=receipt.receipt_url,
+		receipt_url=generate_presigned_url(receipt.receipt_url),
 		restaurant_name=receipt.restaurant_name,
 		total_amount=receipt.total_amount,
 		tax=receipt.tax,
