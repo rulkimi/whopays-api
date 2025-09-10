@@ -1,6 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
-from app.api.endpoints import auth, user, ai, friend, receipt, files, dashboard
+from app.api.endpoints import auth, user, ai, friend, receipt, files, dashboard, item
 # Import all models to ensure relationships are properly resolved
 from app.db import base  # This imports all models
 
@@ -10,6 +10,7 @@ app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(user.router, prefix="/users", tags=["users"])
 app.include_router(friend.router, prefix="/friends", tags=["friends"])
 app.include_router(receipt.router, prefix="/receipts", tags=["receipts"])
+app.include_router(item.router, prefix="/items", tags=["items"])
 app.include_router(files.router, prefix="/files", tags=["files"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 

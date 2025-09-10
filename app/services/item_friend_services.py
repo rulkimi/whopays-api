@@ -6,9 +6,12 @@ from typing import List, Optional
 
 from app.services.file_services import generate_presigned_url
 
+from sqlalchemy import func
+
 def add_friends_to_item(db: Session, item_id: int, friend_ids: List[int], user_id: int) -> bool:
 	"""Add friends to an item"""
 	try:
+		print(f"Attempting to add friends {friend_ids} to item {item_id} for user {user_id}")
 		# Verify the item belongs to the user
 		item = db.query(Item).join(Item.receipt).filter(
 			Item.id == item_id,
@@ -17,6 +20,7 @@ def add_friends_to_item(db: Session, item_id: int, friend_ids: List[int], user_i
 		).first()
 		
 		if not item:
+			print(f"Item {item_id} not found or does not belong to user {user_id}")
 			return False
 		
 		# Verify all friends belong to the user
@@ -27,16 +31,19 @@ def add_friends_to_item(db: Session, item_id: int, friend_ids: List[int], user_i
 		).all()
 		
 		if len(friends) != len(friend_ids):
+			print(f"Some friend_ids {friend_ids} do not belong to user {user_id} or are deleted")
 			return False
 		
 		# Remove existing item-friend relationships
+		print(f"Removing existing item-friend relationships for item {item_id}")
 		db.query(ItemFriend).filter(
 			ItemFriend.item_id == item_id,
 			ItemFriend.is_deleted == False
-		).update({"is_deleted": True, "deleted_at": db.func.now()})
+		).update({"is_deleted": True, "deleted_at": func.now()})
 		
 		# Add new item-friend relationships
 		for friend_id in friend_ids:
+			print(f"Adding friend {friend_id} to item {item_id}")
 			item_friend = ItemFriend(
 				item_id=item_id,
 				friend_id=friend_id
@@ -44,8 +51,10 @@ def add_friends_to_item(db: Session, item_id: int, friend_ids: List[int], user_i
 			db.add(item_friend)
 		
 		db.commit()
+		print(f"Successfully added friends {friend_ids} to item {item_id} for user {user_id}")
 		return True
-	except Exception:
+	except Exception as e:
+		print(f"Exception occurred while adding friends to item: {e}")
 		db.rollback()
 		return False
 
