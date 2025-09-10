@@ -197,11 +197,11 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 	)
 
 def get_user_receipts(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[ReceiptRead]:
-	"""Get all receipts for a user with pagination"""
+	"""Get all receipts for a user with pagination, sorted by latest first"""
 	receipts = db.query(Receipt).filter(
 		Receipt.user_id == user_id,
 		Receipt.is_deleted == False
-	).offset(skip).limit(limit).all()
+	).order_by(Receipt.created_at.desc()).offset(skip).limit(limit).all()
 	
 	receipt_reads = []
 	for receipt in receipts:
