@@ -23,8 +23,10 @@ def download_file(file_id: str):
   return response.read()
 
 def generate_presigned_url(file_id: str, expiry_minutes: int = 10):
-  return minio_client.presigned_get_object(
+  url = minio_client.presigned_get_object(
     settings.MINIO_BUCKET,
     file_id,
     expires=timedelta(minutes=expiry_minutes)
   )
+  return url.replace(settings.MINIO_ENDPOINT, settings.MINIO_PUBLIC_ENDPOINT)
+
