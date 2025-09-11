@@ -3,6 +3,7 @@ from app.core.config import settings
 from fastapi import UploadFile
 import uuid
 from datetime import timedelta
+from urllib.parse import urlparse
 
 def upload_file(file: UploadFile, folder: str) -> str:
 	safe_filename = file.filename.replace(" ", "_")
@@ -23,10 +24,18 @@ def download_file(file_id: str):
   return response.read()
 
 def generate_presigned_url(file_id: str, expiry_minutes: int = 10):
-  url = minio_client.presigned_get_object(
-    settings.MINIO_BUCKET,
-    file_id,
-    expires=timedelta(minutes=expiry_minutes)
-  )
-  return url.replace(settings.MINIO_ENDPOINT, settings.MINIO_PUBLIC_ENDPOINT)
+    raw_url = minio_client.presigned_get_object(
+        settings.MINIO_BUCKET,
+        file_id,
+        expires=timedelta(minutes=expiry_minutes),
+    )
+
+    # Ensure we only swap host:port, not scheme
+    internal = settings.MINIO_ENDPOINT
+    public = settings.MINIO_PUBLIC_ENDPOINT.rstrip("/")
+
+    # replace only netloc (host:port), not scheme
+    parsed = urlparse(raw_url)
+    replaced = raw_url.replace(f"{parsed.scheme}://{parsed.netloc}", public, 1)
+    return replaced
 
