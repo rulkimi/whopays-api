@@ -36,7 +36,7 @@ def get_friends(db: Session, user_id: int):
 			{
 				"id": friend.id,
 				"name": friend.name,
-				"photo_url": photo_url,
+				"photo_url": friend.photo_url,
 				"user_id": friend.user_id
 			}
 		)
