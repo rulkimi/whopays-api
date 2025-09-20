@@ -24,18 +24,19 @@ def download_file(file_id: str):
   return response.read()
 
 def generate_presigned_url(file_id: str, expiry_minutes: int = 10):
-    raw_url = minio_client.presigned_get_object(
-        settings.MINIO_BUCKET,
-        file_id,
-        expires=timedelta(minutes=expiry_minutes),
-    )
+  raw_url = minio_client.presigned_get_object(
+    settings.MINIO_BUCKET,
+    file_id,
+    expires=timedelta(minutes=expiry_minutes),
+  )
+  return raw_url
 
-    # Ensure we only swap host:port, not scheme
-    internal = settings.MINIO_ENDPOINT
-    public = settings.MINIO_PUBLIC_ENDPOINT.rstrip("/")
+  # Ensure we only swap host:port, not scheme
+  internal = settings.MINIO_ENDPOINT
+  public = settings.MINIO_PUBLIC_ENDPOINT.rstrip("/")
 
-    # replace only netloc (host:port), not scheme
-    parsed = urlparse(raw_url)
-    replaced = raw_url.replace(f"{parsed.scheme}://{parsed.netloc}", public, 1)
-    return replaced
+  # replace only netloc (host:port), not scheme
+  parsed = urlparse(raw_url)
+  replaced = raw_url.replace(f"{parsed.scheme}://{parsed.netloc}", public, 1)
+  return replaced
 
