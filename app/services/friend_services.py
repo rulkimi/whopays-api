@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import UploadFile
 from app.db.models.friend import Friend
-from app.services.file_services import upload_file, generate_presigned_url
+from app.services.file_services import upload_file
 
 def create_friend(db: Session, name: str, photo: UploadFile, user_id: int):
 	# Upload photo to MinIO and get the URL
@@ -29,9 +29,6 @@ def get_friends(db: Session, user_id: int):
 	
 	friend_list = []
 	for friend in friends:
-		photo_url = ""
-		if friend.photo_url:
-			photo_url = generate_presigned_url(friend.photo_url)
 		friend_list.append(
 			{
 				"id": friend.id,

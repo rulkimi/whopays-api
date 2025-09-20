@@ -2,9 +2,7 @@ from sqlalchemy.orm import Session
 from app.db.models.item_friend import ItemFriend
 from app.db.models.item import Item
 from app.db.models.friend import Friend
-from typing import List, Optional
-
-from app.services.file_services import generate_presigned_url
+from typing import List
 
 from sqlalchemy import func
 
@@ -98,7 +96,7 @@ def get_item_friends(db: Session, item_id: int, user_id: int) -> List[dict]:
 		friends.append({
 			"id": friend.id,
 			"name": friend.name,
-			"photo_url": generate_presigned_url(friend.photo_url),
+			"photo_url": friend.photo_url,
 			"user_id": friend.user_id
 		})
 	
