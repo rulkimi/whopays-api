@@ -7,7 +7,129 @@ from app.db.models.item import Item
 from app.db.models.variation import Variation
 from app.services.receipt_friend_services import add_friends_to_receipt
 from app.services.item_friend_services import get_item_friends
-from typing import List, Optional
+from typing import Dict, List, Optional
+from decimal import Decimal, ROUND_HALF_UP
+from sqlalchemy.orm import Session
+from app.db.models.item_friend import ItemFriend
+from app.db.models.friend import Friend
+
+def _round2(x: Decimal) -> Decimal:
+	return x.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Optional[dict]:
+	receipt = db.query(Receipt).filter(
+		Receipt.id == receipt_id,
+		Receipt.user_id == user_id,
+		Receipt.is_deleted == False
+	).first()
+	if not receipt:
+		return None
+	
+	items: List[Item] = db.query(Item).filter(
+		Item.receipt_id == receipt_id,
+		Item.is_deleted == False
+	).all()
+	
+	# Preload item → friends map
+	item_friend_map: Dict[int, List[Friend]] = {}
+	if items:
+		item_ids = [it.id for it in items]
+		item_friend_links: List[ItemFriend] = db.query(ItemFriend).filter(
+			ItemFriend.item_id.in_(item_ids),
+			ItemFriend.is_deleted == False
+		).all()
+		for link in item_friend_links:
+			item_friend_map.setdefault(link.item_id, []).append(link.friend)
+	
+	friend_totals: Dict[int, Dict[str, Decimal]] = {}
+	subtotal_all = Decimal("0.00")
+	
+	for item in items:
+		vars: List[Variation] = item.variations if hasattr(item, "variations") else []
+		unit_base = Decimal(str(item.unit_price))
+		unit_addons = sum(Decimal(str(v.price)) for v in vars) if vars else Decimal("0.00")
+		line_total = (unit_base + unit_addons) * Decimal(str(item.quantity))
+		
+		friends = item_friend_map.get(item.id, [])
+		if not friends:
+			# If item has no assigned friends, skip splitting it.
+			# Alternatively: assign to all receipt friends — change behavior if desired.
+			continue
+		
+		split_count = len(friends)
+		share = (line_total / split_count)
+		
+		for f in friends:
+			fd = friend_totals.setdefault(f.id, {"name": f.name, "subtotal": Decimal("0.00")})
+			fd["subtotal"] += share
+		
+		subtotal_all += line_total
+	
+	if subtotal_all == 0:
+		return {
+			"receipt_id": receipt.id,
+			"currency": receipt.currency,
+			"totals": {},
+			"summary": {"subtotal": 0.0, "tax": 0.0, "service_charge": 0.0, "total": 0.0}
+		}
+	
+	# Allocate tax and service charge proportional to subtotals
+	tax_total = Decimal(str(receipt.tax))
+	svc_total = Decimal(str(receipt.service_charge))
+	
+	# First pass rounding
+	per_friend = []
+	acc_tax = Decimal("0.00")
+	acc_svc = Decimal("0.00")
+	for fid, data in friend_totals.items():
+		share_ratio = (data["subtotal"] / subtotal_all)
+		ftax = _round2(tax_total * share_ratio)
+		fsvc = _round2(svc_total * share_ratio)
+		acc_tax += ftax
+		acc_svc += fsvc
+		per_friend.append({
+			"id": fid,
+			"name": data["name"],
+			"subtotal": data["subtotal"],
+			"tax": ftax,
+			"service_charge": fsvc
+		})
+	
+	# Distribute rounding residuals to the friend(s) with largest subtotal
+	tax_residual = tax_total - acc_tax
+	svc_residual = svc_total - acc_svc
+	per_friend.sort(key=lambda x: x["subtotal"], reverse=True)
+	if per_friend:
+		if tax_residual != 0:
+			per_friend[0]["tax"] += tax_residual
+		if svc_residual != 0:
+			per_friend[0]["service_charge"] += svc_residual
+	
+	# Build results (rounded floats)
+	totals_out = {}
+	for f in per_friend:
+		total = f["subtotal"] + f["tax"] + f["service_charge"]
+		totals_out[f["id"]] = {
+			"name": f["name"],
+			"subtotal": float(_round2(f["subtotal"])),
+			"tax": float(_round2(f["tax"])),
+			"service_charge": float(_round2(f["service_charge"])),
+			"total": float(_round2(total))
+		}
+	
+	summary_total = float(_round2(Decimal(str(receipt.total_amount))))
+	return {
+		"receipt_id": receipt.id,
+		"currency": receipt.currency,
+		"totals": totals_out,
+		"summary": {
+			"subtotal": float(_round2(subtotal_all)),
+			"tax": float(_round2(tax_total)),
+			"service_charge": float(_round2(svc_total)),
+			"total": float(_round2(subtotal_all + tax_total + svc_total))
+		},
+		"note": "Items without assigned friends are excluded from splits. Assign item friends to include them."
+	}
 
 def analyze_receipt(image_data: bytes) -> ReceiptBase:
 	"""Analyze receipt image and return AI response as ReceiptBase model"""
