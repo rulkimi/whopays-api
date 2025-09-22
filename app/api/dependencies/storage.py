@@ -1,11 +1,26 @@
 from minio import Minio
 from app.core.config import settings
 
+def _normalize_minio_endpoint(endpoint: str, default_secure: bool) -> tuple[str, bool]:
+  ep = (endpoint or "").strip()
+  secure = default_secure
+  if ep.startswith("http://"):
+    secure = False
+    ep = ep[len("http://"):]
+  elif ep.startswith("https://"):
+    secure = True
+    ep = ep[len("https://"):]
+  if "/" in ep:
+    ep = ep.split("/", 1)[0]
+  return ep, secure
+
+_endpoint, _secure = _normalize_minio_endpoint(settings.MINIO_ENDPOINT, settings.MINIO_SECURE)
+
 minio_client = Minio(
-  settings.MINIO_ENDPOINT,
+  _endpoint,
   access_key=settings.MINIO_ACCESS_KEY,
   secret_key=settings.MINIO_SECRET_KEY,
-  secure=settings.MINIO_SECURE,
+  secure=_secure,
 )
 
 # Ensure bucket exists
