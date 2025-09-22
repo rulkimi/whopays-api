@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.database import get_db
@@ -13,39 +13,61 @@ from typing import List
 
 router = APIRouter()
 
-@router.post("", status_code=201, response_model=ReceiptRead)
+def analyze_and_create_receipt(
+	db: Session,
+	receipt_url: str,
+	image_data: bytes,
+	friend_ids: List[int],
+	user_id: int
+):
+	try:
+		image = Image.open(io.BytesIO(image_data))
+		receipt_data = analyze_receipt(image)
+		create_receipt_with_items(
+			db=db,
+			receipt_data=receipt_data,
+			user_id=user_id,
+			receipt_url=receipt_url,
+			friend_ids=friend_ids
+		)
+	except Exception as e:
+		# Optionally log the error here
+		pass
+
+@router.post("", status_code=201)
 async def upload_and_analyze_receipt_image(
+	background_tasks: BackgroundTasks,
 	file: UploadFile = File(...),
 	friend_ids: List[int] = [],
 	db: Session = Depends(get_db),
 	current_user: User = Depends(get_current_user)
 ):
-	"""Analyze receipt image and save to database"""
+	"""Upload receipt image and start background analysis"""
 	if not file.content_type or not file.content_type.startswith("image/"):
 		raise HTTPException(status_code=400, detail="Only image files are accepted.")
-	
+
 	image_data = await file.read()
 	try:
-		image = Image.open(io.BytesIO(image_data))
+		Image.open(io.BytesIO(image_data))
 	except Exception:
 		raise HTTPException(status_code=400, detail="Invalid image file.")
-  
+
 	# Reset file pointer for upload
 	file.file.seek(0)
 	# Upload image to MinIO
 	receipt_url = upload_file(file, "receipts")
-	
-	receipt_data = analyze_receipt(image)
-	
-	receipt_read = create_receipt_with_items(
-		db=db,
-		receipt_data=receipt_data,
-		user_id=current_user.id,
-		receipt_url=receipt_url,
-		friend_ids=friend_ids
+
+	# Start background task for analysis and DB creation
+	background_tasks.add_task(
+		analyze_and_create_receipt,
+		db,
+		receipt_url,
+		image_data,
+		friend_ids,
+		current_user.id
 	)
-	
-	return receipt_read
+
+	return {"message": "Receipt image uploaded successfully. Analysis is in progress.", "receipt_url": receipt_url}
 
 @router.get("/{receipt_id}", response_model=ReceiptRead)
 async def retrieve_receipt_by_id(
