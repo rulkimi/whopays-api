@@ -84,6 +84,7 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 				{
 					"id": f.id,
 					"name": f.name,
+					"photo_url": getattr(f, "photo_url", None),
 					"share": float(_round2(share))
 				} for f in friends
 			]
@@ -91,7 +92,15 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 		items_out.append(item_entry)
 		
 		for f in friends:
-			fd = friend_totals.setdefault(f.id, {"name": f.name, "subtotal": Decimal("0.00"), "items": []})
+			fd = friend_totals.setdefault(
+				f.id,
+				{
+					"name": f.name,
+					"photo_url": getattr(f, "photo_url", None),
+					"subtotal": Decimal("0.00"),
+					"items": []
+				}
+			)
 			fd["subtotal"] += share
 			fd["items"].append({
 				"item_id": item.id,
@@ -129,6 +138,7 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 		per_friend.append({
 			"id": fid,
 			"name": data["name"],
+			"photo_url": data.get("photo_url"),
 			"subtotal": data["subtotal"],
 			"tax": ftax,
 			"service_charge": fsvc
@@ -151,6 +161,7 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 		totals_out.append({
 			"id": f["id"],
 			"name": f["name"],
+			"photo_url": f.get("photo_url"),
 			"subtotal": float(_round2(f["subtotal"])),
 			"tax": float(_round2(f["tax"])),
 			"service_charge": float(_round2(f["service_charge"])),
