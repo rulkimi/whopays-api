@@ -10,6 +10,7 @@ from app.db.models.user import User
 from PIL import Image
 import io
 from typing import List
+from app.services.receipt_services import calculate_receipt_splits
 
 router = APIRouter()
 
@@ -151,3 +152,14 @@ async def replace_receipt_friends_by_id(
 	if not success:
 		raise HTTPException(status_code=400, detail="Failed to update receipt friends")
 	return {"message": "Receipt friends updated successfully"}
+
+@router.get("/receipts/{receipt_id}/splits")
+def get_receipt_splits(
+	receipt_id: int,
+	db: Session = Depends(get_db),
+	user_id: int = Depends(get_current_user)
+):
+	result = calculate_receipt_splits(db, receipt_id, user_id)
+	if result is None:
+		raise HTTPException(status_code=404, detail="Receipt not found")
+	return result
