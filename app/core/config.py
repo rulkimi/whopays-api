@@ -6,12 +6,12 @@ class Settings(BaseSettings):
 	database_url: str | None = None
 
 	# Individual parts with sensible local defaults so dev can boot without .env
-	DB_DRIVER: str = "postgresql+psycopg2"
-	DB_HOST: str = "localhost"
-	DB_USER: str = "postgres"
-	DB_PASSWORD: str = "postgres"
-	DB_NAME: str = "whopays"
-	DB_PORT: int = 5432
+	DB_DRIVER: str 
+	DB_HOST: str 
+	DB_USER: str 
+	DB_PASSWORD: str
+	DB_NAME: str 
+	DB_PORT: int
 	# DATABASE_URL is computed via property below to avoid referencing annotated fields in class body
 	
 	SECRET_KEY: str = "secret"
