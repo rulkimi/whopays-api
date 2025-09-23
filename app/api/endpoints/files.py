@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import Depends, HTTPException, UploadFile, File
+from app.api.router import create_router
 from fastapi.responses import Response
 from app.services.file_services import FileService
 from app.api.dependencies.auth import get_current_user
@@ -13,7 +14,7 @@ from app.schemas.file import (
 )
 from app.db.models.user import User
 
-router = APIRouter()
+router = create_router(name="files")
 
 
 @router.get("/{file_id}")

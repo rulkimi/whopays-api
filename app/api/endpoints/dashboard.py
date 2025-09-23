@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
+from app.api.router import create_router
 from sqlalchemy.orm import Session
 from app.api.dependencies.database import get_db
 from app.api.dependencies.auth import get_current_user
@@ -8,7 +9,7 @@ from app.services.receipt_services import ReceiptService
 from app.schemas.friend import FriendRead
 from app.schemas.receipt import GetReceiptsInput
 
-router = APIRouter()
+router = create_router(name="dashboard")
 
 @router.get("")
 def get_dashboard(

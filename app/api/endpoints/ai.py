@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import HTTPException, Depends, UploadFile, File
+from app.api.router import create_router
 from app.gemini.prompts import create_analysis_prompt
 from app.gemini.services import get_ai_response
 from app.api.dependencies.database import get_db
@@ -9,7 +10,7 @@ from app.schemas.receipt import ReceiptBase
 from PIL import Image
 import io
 
-router = APIRouter()
+router = create_router(name="ai")
 
 @router.post("/gemini")
 def test_ai():

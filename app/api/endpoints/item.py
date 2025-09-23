@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status
+from app.api.router import create_router
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ from app.api.dependencies.database import get_db
 from app.api.dependencies.auth import get_current_user
 from app.services import item_friend_services
 
-router = APIRouter()
+router = create_router(name="item")
 
 class AddFriendsToItemRequest(BaseModel):
 	item_id: int

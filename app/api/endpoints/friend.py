@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import Depends, HTTPException, status, UploadFile, File, Form
+from app.api.router import create_router
 from sqlalchemy.orm import Session
 from app.api.dependencies.database import get_db
 from app.api.dependencies.auth import get_current_user
@@ -6,7 +7,7 @@ from app.api.dependencies.services import get_friend_service
 from app.services.friend_services import FriendService
 from app.schemas.friend import FriendRead
 
-router = APIRouter()
+router = create_router(name="friend")
 
 @router.post("", status_code=201, response_model=FriendRead)
 def add_friend(

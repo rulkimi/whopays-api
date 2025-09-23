@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import Depends, UploadFile, File, HTTPException, BackgroundTasks
+from app.api.router import create_router
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.database import get_db
@@ -14,7 +15,7 @@ from PIL import Image
 import io
 from typing import List
 
-router = APIRouter()
+router = create_router(name="receipt")
 
 def analyze_and_create_receipt(
     db: Session,
