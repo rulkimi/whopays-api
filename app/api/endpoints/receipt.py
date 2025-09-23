@@ -7,7 +7,7 @@ from app.services.receipt_services import ReceiptService
 from app.services.receipt_friend_services import ReceiptFriendService
 from app.services.file_services import FileService
 from app.schemas.receipt import ReceiptRead, AddFriendsToReceiptInput, RemoveFriendsFromReceiptInput, GetReceiptFriendsInput, UpdateReceiptFriendsInput
-from app.schemas.receipt import AnalyzeReceiptInput, CreateReceiptInput, GetReceiptInput, GetReceiptsInput, DeleteReceiptInput, CalculateSplitsInput
+from app.schemas.receipt import AnalyzeReceiptInput, CreateReceiptInput, GetReceiptInput, GetReceiptsInput, DeleteReceiptInput, CalculateSplitsInput, ReceiptSplitsResponse
 from app.schemas.file import FileUploadInput
 from app.db.models.user import User
 from PIL import Image
@@ -224,7 +224,7 @@ async def replace_receipt_friends_by_id(
 	
 	return {"message": result.message}
 
-@router.get("/{receipt_id}/splits")
+@router.get("/{receipt_id}/splits", response_model=ReceiptSplitsResponse)
 def get_receipt_splits(
     receipt_id: int,
     db: Session = Depends(get_db),

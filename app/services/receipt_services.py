@@ -520,47 +520,102 @@ class ReceiptService(BaseService):
         return friends
 
     def _calculate_splits(self, receipt: Receipt, friends: List[Friend]) -> Dict[str, Any]:
-        """Calculate how to split the receipt among friends."""
+        """Calculate splits based on item-friend associations.
+
+        - Only items associated to a friend contribute to that friend's subtotal.
+        - Items with no associated friends are considered owner's responsibility.
+        - Tax and service_charge are allocated proportionally to friends based on their subtotal share.
+        """
         total_amount = Decimal(str(receipt.total_amount))
         tax = Decimal(str(receipt.tax))
         service_charge = Decimal(str(receipt.service_charge))
-        
-        # Include the receipt owner in the split calculation
-        total_people = len(friends) + 1  # +1 for the receipt owner
-        
-        # Simple equal split for now
-        amount_per_person = _round2(total_amount / total_people)
-        tax_per_person = _round2(tax / total_people)
-        service_per_person = _round2(service_charge / total_people)
-        
-        # Calculate splits for each friend
-        friend_splits = []
-        for friend in friends:
-            friend_splits.append({
-                "friend_id": friend.id,
-                "friend_name": friend.name,
-                "amount": float(amount_per_person),
-                "tax": float(tax_per_person),
-                "service_charge": float(service_per_person),
-                "total": float(amount_per_person + tax_per_person + service_per_person)
+
+        # Prepare trackers
+        items: List[Dict[str, Any]] = []
+        per_item_share_by_friend: Dict[int, List[Dict[str, Any]]] = {f.id: [] for f in friends}
+        friend_subtotals: Dict[int, Decimal] = {f.id: Decimal("0") for f in friends}
+
+        for item in getattr(receipt, "items", []) or []:
+            unit_price = Decimal(str(item.unit_price))
+            quantity = int(item.quantity)
+            unit_total = unit_price
+            line_total = _round2(unit_total * Decimal(quantity))
+
+            # Determine associated friends for this item (exclude soft-deleted and deleted friends)
+            associated_friends: List[Friend] = []
+            for link in getattr(item, "item_friends", []) or []:
+                if getattr(link, "is_deleted", False):
+                    continue
+                f = getattr(link, "friend", None)
+                if not f or getattr(f, "is_deleted", False):
+                    continue
+                associated_friends.append(f)
+
+            shares: List[Dict[str, Any]] = []
+            if associated_friends:
+                per_friend_share = _round2(line_total / Decimal(len(associated_friends)))
+                for f in associated_friends:
+                    friend_subtotals[f.id] = friend_subtotals[f.id] + per_friend_share
+                    per_item_share_by_friend[f.id].append({
+                        "item_id": item.id,
+                        "item_name": item.item_name,
+                        "share": float(per_friend_share)
+                    })
+                    shares.append({
+                        "id": f.id,
+                        "name": f.name,
+                        "share": float(per_friend_share)
+                    })
+
+            # Append item representation (only show assigned friends)
+            items.append({
+                "item_id": item.id,
+                "item_name": item.item_name,
+                "quantity": quantity,
+                "unit_price": float(unit_price),
+                "variations": [],
+                "unit_total": float(unit_total),
+                "line_total": float(line_total),
+                "friends": shares
             })
-        
-        # Calculate owner's split
-        owner_split = {
-            "amount": float(amount_per_person),
-            "tax": float(tax_per_person),
-            "service_charge": float(service_per_person),
-            "total": float(amount_per_person + tax_per_person + service_per_person)
+
+        # Total subtotal assigned to friends
+        subtotal_assigned = sum(friend_subtotals.values(), Decimal("0"))
+
+        # Build totals per friend with proportional tax/service allocations
+        totals: List[Dict[str, Any]] = []
+        for f in friends:
+            subtotal_f = friend_subtotals[f.id]
+            ratio = (subtotal_f / subtotal_assigned) if subtotal_assigned > 0 else Decimal("0")
+            tax_f = _round2(tax * ratio)
+            service_f = _round2(service_charge * ratio)
+            total_f = subtotal_f + tax_f + service_f
+            totals.append({
+                "id": f.id,
+                "name": f.name,
+                "photo_url": getattr(f, "photo_url", None) or "",
+                "subtotal": float(subtotal_f),
+                "tax": float(tax_f),
+                "service_charge": float(service_f),
+                "total": float(total_f),
+                "items": per_item_share_by_friend.get(f.id, [])
+            })
+
+        # Summary (full receipt totals)
+        summary = {
+            "subtotal": float(total_amount),
+            "tax": float(tax),
+            "service_charge": float(service_charge),
+            "total": float(total_amount + tax + service_charge)
         }
-        
+
         return {
             "receipt_id": receipt.id,
-            "restaurant_name": receipt.restaurant_name,
-            "total_amount": float(total_amount),
-            "total_people": total_people,
-            "owner_split": owner_split,
-            "friend_splits": friend_splits,
-            "currency": receipt.currency
+            "currency": receipt.currency,
+            "totals": totals,
+            "items": items,
+            "summary": summary,
+            "note": "Split based on assigned item friends; unassigned costs go to owner"
         }
 
 

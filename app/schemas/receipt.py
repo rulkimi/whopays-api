@@ -324,3 +324,56 @@ class RemoveFriendFromAllReceiptsResult(BaseModel):
 	data: Optional[bool] = None  # True if successful
 	error_code: Optional[str] = None
 	message: Optional[str] = None
+
+	
+
+
+class ReceiptSplitsItemFriendShare(BaseModel):
+	id: int
+	name: str
+	share: float
+
+
+class ReceiptSplitsItem(BaseModel):
+	item_id: int
+	item_name: str
+	quantity: int
+	unit_price: float
+	variations: List[Any] = []
+	unit_total: float
+	line_total: float
+	friends: List[ReceiptSplitsItemFriendShare]
+
+
+class ReceiptSplitsFriendItem(BaseModel):
+	"""Per-friend view of an item within totals-per-friend."""
+	item_id: int
+	item_name: str
+	share: float
+
+
+class ReceiptSplitsTotalsPerFriend(BaseModel):
+	id: int
+	name: str
+	photo_url: Optional[str] = None
+	subtotal: float
+	tax: float
+	service_charge: float
+	total: float
+	items: List[ReceiptSplitsFriendItem]
+
+
+class ReceiptSplitsSummary(BaseModel):
+	subtotal: float
+	tax: float
+	service_charge: float
+	total: float
+
+
+class ReceiptSplitsResponse(BaseModel):
+	receipt_id: int
+	currency: str
+	totals: List[ReceiptSplitsTotalsPerFriend]
+	items: List[ReceiptSplitsItem]
+	summary: ReceiptSplitsSummary
+	note: str

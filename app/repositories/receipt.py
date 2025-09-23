@@ -113,7 +113,7 @@ class ReceiptRepository(BaseRepository[Receipt]):
         return results
     
     def get_with_items(self, receipt_id: int, user_id: int) -> Optional[Receipt]:
-        """Get receipt with all items and variations loaded.
+        """Get receipt with items, variations, and item-friends loaded.
         
         Args:
             receipt_id: Receipt ID
@@ -122,8 +122,10 @@ class ReceiptRepository(BaseRepository[Receipt]):
         Returns:
             Receipt instance with items loaded or None if not found
         """
+        from app.db.models.item_friend import ItemFriend
         result = self.db.query(self.model).options(
-            joinedload(self.model.items).joinedload(Item.variations)
+            joinedload(self.model.items).joinedload(Item.variations),
+            joinedload(self.model.items).joinedload(Item.item_friends).joinedload(ItemFriend.friend)
         ).filter(
             self.model.id == receipt_id,
             self.model.user_id == user_id,
