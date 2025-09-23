@@ -11,12 +11,14 @@ from app.services.receipt_friend_services import ReceiptFriendService
 from app.services.item_friend_services import ItemFriendService
 from app.services.friend_services import FriendService
 from app.services.file_services import FileService
+from app.services.job_services import JobService
 from app.repositories.user import UserRepository
 from app.repositories.receipt import ReceiptRepository
 from app.repositories.item import ItemRepository
 from app.repositories.friend import FriendRepository
 from app.repositories.receipt_friend import ReceiptFriendRepository
 from app.repositories.item_friend import ItemFriendRepository
+from app.repositories.job import JobRepository
 
 
 def get_correlation_id(request: Request) -> Optional[str]:
@@ -71,6 +73,14 @@ def get_item_friend_repository(
 ) -> ItemFriendRepository:
     """Provide ItemFriendRepository instance."""
     return ItemFriendRepository(db=db, correlation_id=correlation_id)
+
+
+def get_job_repository(
+    db: Session = Depends(get_db),
+    correlation_id: Optional[str] = Depends(get_correlation_id)
+) -> JobRepository:
+    """Provide JobRepository instance."""
+    return JobRepository(db=db, correlation_id=correlation_id)
 
 
 # Service Dependencies
@@ -213,3 +223,11 @@ def get_file_service(
         Configured FileService instance
     """
     return FileService(correlation_id=correlation_id)
+
+
+def get_job_service(
+    job_repo: JobRepository = Depends(get_job_repository),
+    correlation_id: Optional[str] = Depends(get_correlation_id)
+) -> JobService:
+    """Provide JobService instance with required repository."""
+    return JobService(job_repo=job_repo, correlation_id=correlation_id)

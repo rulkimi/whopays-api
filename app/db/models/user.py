@@ -14,3 +14,4 @@ class User(Base, AuditMixin):
 
 	friends = relationship("Friend", back_populates="user", cascade="all, delete-orphan")
 	receipts = relationship("Receipt", back_populates="user", cascade="all, delete-orphan")
+	jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")

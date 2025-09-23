@@ -3,10 +3,11 @@ from app.api.router import create_router
 from sqlalchemy.orm import Session
 from app.api.dependencies.auth import get_current_user
 from app.api.dependencies.database import get_db
-from app.api.dependencies.services import get_receipt_friend_service, get_receipt_service, get_file_service
+from app.api.dependencies.services import get_receipt_friend_service, get_receipt_service, get_file_service, get_job_service
 from app.services.receipt_services import ReceiptService
 from app.services.receipt_friend_services import ReceiptFriendService
 from app.services.file_services import FileService
+from app.services.job_services import JobService
 from app.schemas.receipt import ReceiptRead, AddFriendsToReceiptInput, RemoveFriendsFromReceiptInput, GetReceiptFriendsInput, UpdateReceiptFriendsInput
 from app.schemas.receipt import AnalyzeReceiptInput, CreateReceiptInput, GetReceiptInput, GetReceiptsInput, DeleteReceiptInput, CalculateSplitsInput, ReceiptSplitsResponse
 from app.schemas.file import FileUploadInput
@@ -24,9 +25,13 @@ def analyze_and_create_receipt(
     friend_ids: List[int],
     user_id: int,
     receipt_service: ReceiptService,
-    content_type: str = "image/jpeg"
+    content_type: str = "image/jpeg",
+    job_id: int | None = None,
+    job_service: JobService | None = None,
 ):
     try:
+        if job_id and job_service:
+            job_service.start(job_id, db)
         # Use the service-based approach
         analyze_input = AnalyzeReceiptInput(
             image_data=image_data,
@@ -35,6 +40,8 @@ def analyze_and_create_receipt(
         result = receipt_service.analyze_receipt(analyze_input, db)
         
         if result.success:
+            if job_id and job_service:
+                job_service.progress(job_id, 70, db)
             # Create receipt with items using the new method
             create_input = CreateReceiptInput(
                 receipt_data=result.data,
@@ -44,17 +51,25 @@ def analyze_and_create_receipt(
             create_result = receipt_service.create_receipt_with_items(create_input, user_id, db)
             
             if create_result.success:
+                if job_id and job_service:
+                    job_service.succeed(job_id, create_result.data["receipt_id"], db)
                 return create_result.data
             else:
-                raise HTTPException(status_code=400, detail=create_result.message)
+                if job_id and job_service:
+                    job_service.fail(job_id, create_result.error_code or "RECEIPT_CREATION_FAILED", create_result.message or "Failed", db)
+                return None
         else:
-            raise HTTPException(status_code=400, detail=result.message)
+            if job_id and job_service:
+                job_service.fail(job_id, result.error_code or "RECEIPT_ANALYSIS_FAILED", result.message or "Failed", db)
+            return None
             
     except Exception as e:
         # Optionally log the error here
-        raise HTTPException(status_code=500, detail=str(e))
+        if job_id and job_service:
+            job_service.fail(job_id, "UNEXPECTED_ERROR", str(e), db)
+        return None
 
-@router.post("", status_code=201)
+@router.post("", status_code=202)
 async def upload_and_analyze_receipt_image(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -62,7 +77,8 @@ async def upload_and_analyze_receipt_image(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     receipt_service: ReceiptService = Depends(get_receipt_service),
-    file_service: FileService = Depends(get_file_service)
+    file_service: FileService = Depends(get_file_service),
+    job_service: JobService = Depends(get_job_service)
 ):
     """Upload receipt image and start background analysis"""
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -89,7 +105,13 @@ async def upload_and_analyze_receipt_image(
     
     receipt_url = upload_result.data  # file_id can be used as URL reference
 
-    # Start background task for analysis and DB creation
+    # Create job and start background task for analysis and DB creation
+    from app.schemas.job import JobType
+    job = job_service.create_job(current_user.id, job_type=JobType.RECEIPT_ANALYSIS, payload={
+        "receipt_url": receipt_url,
+        "friend_ids": friend_ids,
+        "content_type": file.content_type or "image/jpeg"
+    }, db=db)
     background_tasks.add_task(
         analyze_and_create_receipt,
         db,
@@ -98,10 +120,14 @@ async def upload_and_analyze_receipt_image(
         friend_ids,
         current_user.id,
         receipt_service,
-        file.content_type or "image/jpeg"
+        file.content_type or "image/jpeg",
+        job.id,
+        job_service
     )
-
-    return {"message": "Receipt image uploaded successfully. Analysis is in progress.", "receipt_url": receipt_url}
+    # Return 202 Accepted with job reference
+    from fastapi import Response
+    headers = {"Location": f"/jobs/{job.id}"}
+    return Response(content=__import__('json').dumps({"job_id": job.id, "status": "PENDING"}), media_type="application/json", headers=headers, status_code=202)
 
 @router.get("/{receipt_id}", response_model=ReceiptRead)
 async def retrieve_receipt_by_id(
