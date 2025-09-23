@@ -28,9 +28,11 @@ def add_friends_to_item(
 	current_user=Depends(get_current_user)
 ):
 	"""
-	Add friends to a single item.
+	Add friends to a single item. If friend_ids is empty, all friends will be removed from the item.
 	"""
-	print(f"User {current_user.id} is attempting to add friends {req.friend_ids} to item {req.item_id}")
+	action = "clear friends from" if not req.friend_ids else "add friends"
+	print(f"User {current_user.id} is attempting to {action} item {req.item_id}: {req.friend_ids}")
+	
 	success = item_friend_services.add_friends_to_item(
 		db=db,
 		item_id=req.item_id,
@@ -38,12 +40,14 @@ def add_friends_to_item(
 		user_id=current_user.id
 	)
 	if not success:
-		print(f"Failed to add friends {req.friend_ids} to item {req.item_id} for user {current_user.id}")
+		print(f"Failed to {action} item {req.item_id} for user {current_user.id}")
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Failed to add friends to item. Check item and friend ownership."
+			detail="Failed to update item friends. Check item and friend ownership."
 		)
-	print(f"Successfully added friends {req.friend_ids} to item {req.item_id} for user {current_user.id}")
+	
+	success_message = f"Successfully cleared friends from item {req.item_id}" if not req.friend_ids else f"Successfully added friends {req.friend_ids} to item {req.item_id}"
+	print(f"{success_message} for user {current_user.id}")
 	return AddFriendsResponse(success=True, item_id=req.item_id)
 
 @router.post("/add-friends-multiple", response_model=List[AddFriendsResponse])

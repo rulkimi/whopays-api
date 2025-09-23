@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from app.api.dependencies.database import get_db
 from app.api.dependencies.auth import get_current_user
-from app.services import friend_services
+from app.api.dependencies.services import get_friend_service
+from app.services.friend_services import FriendService
 from app.schemas.friend import FriendRead
 
 router = APIRouter()
@@ -12,37 +13,52 @@ def add_friend(
 	name: str = Form(...),
 	photo: UploadFile = File(...),
 	db: Session = Depends(get_db),
-	current_user=Depends(get_current_user)
+	current_user=Depends(get_current_user),
+	friend_service: FriendService = Depends(get_friend_service)
 ):
 	"""
 	Add a friend for the current user with photo upload.
 	"""	
-	friend = friend_services.create_friend(db, name, photo, current_user.id)
-	return friend
+	result = friend_service.create_friend(name, photo, current_user.id, db)
+	if not result.success:
+		if result.error_code == "FRIEND_NOT_FOUND":
+			raise HTTPException(status_code=404, detail=result.message)
+		elif result.error_code in ["VALIDATION_ERROR", "PHOTO_UPLOAD_FAILED"]:
+			raise HTTPException(status_code=400, detail=result.message)
+		else:
+			raise HTTPException(status_code=500, detail=result.message)
+	return result.data
 
 @router.get("", response_model=list[FriendRead])
 def get_friends(
 	db: Session = Depends(get_db),
-	current_user=Depends(get_current_user)
+	current_user=Depends(get_current_user),
+	friend_service: FriendService = Depends(get_friend_service)
 ):
 	"""
 	Get all friends for the current user.
 	"""
-	friends = friend_services.get_friends(db, current_user.id)
-	return friends
+	result = friend_service.get_friends(current_user.id, db)
+	if not result.success:
+		raise HTTPException(status_code=500, detail=result.message)
+	return result.data
 
 @router.delete("/{friend_id}", status_code=204)
 def delete_friend(
 	friend_id: int,
 	db: Session = Depends(get_db),
-	current_user=Depends(get_current_user)
+	current_user=Depends(get_current_user),
+	friend_service: FriendService = Depends(get_friend_service)
 ):
 	"""
 	Soft delete a friend by setting is_deleted to True.
 	"""
-	friend = friend_services.delete_friend(db, friend_id, current_user.id)
-	if not friend:
-		raise HTTPException(status_code=404, detail="Friend not found")
+	result = friend_service.delete_friend(friend_id, current_user.id, db)
+	if not result.success:
+		if result.error_code == "FRIEND_NOT_FOUND":
+			raise HTTPException(status_code=404, detail=result.message)
+		else:
+			raise HTTPException(status_code=500, detail=result.message)
 	return
 
 @router.put("/{friend_id}", response_model=FriendRead)
@@ -51,12 +67,18 @@ def edit_friend(
 	name: str = Form(...),
 	photo: UploadFile = File(...),
 	db: Session = Depends(get_db),
-	current_user=Depends(get_current_user)
+	current_user=Depends(get_current_user),
+	friend_service: FriendService = Depends(get_friend_service)
 ):
 	"""
 	Edit a friend's information with photo upload.
 	"""
-	friend = friend_services.edit_friend(db, friend_id, name, photo, current_user.id)
-	if not friend:
-		raise HTTPException(status_code=404, detail="Friend not found")
-	return friend
+	result = friend_service.update_friend(friend_id, name, photo, current_user.id, db)
+	if not result.success:
+		if result.error_code == "FRIEND_NOT_FOUND":
+			raise HTTPException(status_code=404, detail=result.message)
+		elif result.error_code in ["VALIDATION_ERROR", "PHOTO_UPLOAD_FAILED"]:
+			raise HTTPException(status_code=400, detail=result.message)
+		else:
+			raise HTTPException(status_code=500, detail=result.message)
+	return result.data
