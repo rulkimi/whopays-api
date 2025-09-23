@@ -534,6 +534,7 @@ class ReceiptService(BaseService):
         items: List[Dict[str, Any]] = []
         per_item_share_by_friend: Dict[int, List[Dict[str, Any]]] = {f.id: [] for f in friends}
         friend_subtotals: Dict[int, Decimal] = {f.id: Decimal("0") for f in friends}
+        receipt_subtotal: Decimal = Decimal("0")
 
         for item in getattr(receipt, "items", []) or []:
             unit_price = Decimal(str(item.unit_price))
@@ -579,14 +580,14 @@ class ReceiptService(BaseService):
                 "friends": shares
             })
 
-        # Total subtotal assigned to friends
-        subtotal_assigned = sum(friend_subtotals.values(), Decimal("0"))
+            # Accumulate receipt subtotal from all items
+            receipt_subtotal = receipt_subtotal + line_total
 
         # Build totals per friend with proportional tax/service allocations
         totals: List[Dict[str, Any]] = []
         for f in friends:
             subtotal_f = friend_subtotals[f.id]
-            ratio = (subtotal_f / subtotal_assigned) if subtotal_assigned > 0 else Decimal("0")
+            ratio = (subtotal_f / receipt_subtotal) if receipt_subtotal > 0 else Decimal("0")
             tax_f = _round2(tax * ratio)
             service_f = _round2(service_charge * ratio)
             total_f = subtotal_f + tax_f + service_f
@@ -603,10 +604,10 @@ class ReceiptService(BaseService):
 
         # Summary (full receipt totals)
         summary = {
-            "subtotal": float(total_amount),
+            "subtotal": float(receipt_subtotal),
             "tax": float(tax),
             "service_charge": float(service_charge),
-            "total": float(total_amount + tax + service_charge)
+            "total": float(total_amount)
         }
 
         return {
