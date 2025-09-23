@@ -244,6 +244,7 @@ class ReceiptService(BaseService):
             if not receipt:
                 raise ReceiptNotFoundError(
                     receipt_id=sanitized_input.receipt_id,
+                    user_id=user_id,
                     correlation_id=self.correlation_id
                 )
             
@@ -298,15 +299,32 @@ class ReceiptService(BaseService):
                         price=float(variation.price)
                     ))
             
-            # For now, we'll leave friends empty for items since the relationship is complex
-            # This would need to be populated from ItemFriend associations if needed
+            # Populate friends per item from ItemFriend associations (preloaded via repository)
+            item_friends_data: List[FriendRead] = []
+            try:
+                for link in getattr(item, "item_friends", []) or []:
+                    # Skip soft-deleted links or missing friend
+                    if getattr(link, "is_deleted", False):
+                        continue
+                    friend = getattr(link, "friend", None)
+                    if not friend or getattr(friend, "is_deleted", False):
+                        continue
+                    item_friends_data.append(FriendRead(
+                        id=friend.id,
+                        user_id=friend.user_id,
+                        name=friend.name,
+                        photo_url=friend.photo_url or ""
+                    ))
+            except Exception:
+                # Defensive: do not break response if relationships are missing
+                item_friends_data = []
             items_data.append(Item(
                 item_id=item.id,
                 item_name=item.item_name,
                 quantity=item.quantity,
                 unit_price=float(item.unit_price),
                 variation=variations_data if variations_data else None,
-                friends=[]  # TODO: Populate from ItemFriend if needed
+                friends=item_friends_data
             ))
         
         # Convert friends from ReceiptFriend associations

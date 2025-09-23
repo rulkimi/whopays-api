@@ -316,7 +316,6 @@ class ResourceNotFoundError(BusinessError):
             correlation_id=correlation_id,
             details=details,
             user_message=f"{resource_type} not found or you don't have permission to access it.",
-            category=ErrorCategory.RESOURCE_NOT_FOUND,
             http_status=HTTPStatus.NOT_FOUND
         )
 

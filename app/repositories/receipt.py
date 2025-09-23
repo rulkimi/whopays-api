@@ -49,8 +49,10 @@ class ReceiptRepository(BaseRepository[Receipt]):
         from app.db.models.receipt_friend import ReceiptFriend
         from app.db.models.friend import Friend
         
+        from app.db.models.item_friend import ItemFriend
         query = self.db.query(self.model).options(
             joinedload(self.model.items).joinedload(Item.variations),
+            joinedload(self.model.items).joinedload(Item.item_friends).joinedload(ItemFriend.friend),
             joinedload(self.model.friends).joinedload(ReceiptFriend.friend)
         ).filter(
             self.model.user_id == user_id,
@@ -77,8 +79,10 @@ class ReceiptRepository(BaseRepository[Receipt]):
         from app.db.models.receipt_friend import ReceiptFriend
         from app.db.models.friend import Friend
         
+        from app.db.models.item_friend import ItemFriend
         result = self.db.query(self.model).options(
             joinedload(self.model.items).joinedload(Item.variations),
+            joinedload(self.model.items).joinedload(Item.item_friends).joinedload(ItemFriend.friend),
             joinedload(self.model.friends).joinedload(ReceiptFriend.friend)
         ).filter(
             self.model.id == receipt_id,
