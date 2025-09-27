@@ -35,7 +35,7 @@ MinIO Console is available at `http://localhost:${MINIO_CONSOLE_PORT}` (default 
 PowerShell (Windows):
 ```powershell
 py -3.13 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+./venv/Scripts/Activate.ps1
 pip install -r requirements.txt
 
 # Apply database migrations
