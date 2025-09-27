@@ -19,6 +19,12 @@ class Settings(BaseSettings):
 	ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 	GOOGLE_GEMINI_API_KEY: str | None = None
 
+	# Observability / Telemetry flags
+	ENABLE_REQUEST_LOGGING: bool = True
+	ENABLE_OUTBOUND_LOGGING: bool = True
+	LOG_SAMPLE_RATE: float = 1.0
+	ENABLE_PROMETHEUS: bool = False
+
 	MINIO_ENDPOINT: str = os.getenv("MINIO_ENDPOINT", "localhost:9000")
 	MINIO_PUBLIC_ENDPOINT: str = os.getenv("MINIO_PUBLIC_ENDPOINT", "localhost:9000")
 	MINIO_ACCESS_KEY: str = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
