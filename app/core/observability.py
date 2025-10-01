@@ -27,7 +27,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 		if not settings.ENABLE_REQUEST_LOGGING:
 			return await call_next(request)
 
-		# Sampling
 		try:
 			from random import random
 			sampled_out = (settings.LOG_SAMPLE_RATE < 1.0) and (random() > float(settings.LOG_SAMPLE_RATE))
@@ -39,22 +38,24 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 		start_ns = time.monotonic_ns()
 		status_code: int = 500
-		response: Response
+		response: Optional[Response] = None
+
 		try:
 			response = await call_next(request)
 			status_code = response.status_code
+		except Exception:
+			from starlette.responses import JSONResponse
+			response = JSONResponse({"detail": "Internal Server Error"}, status_code=500)
+			raise
 		finally:
 			duration_ms = int((time.monotonic_ns() - start_ns) / 1_000_000)
-			# Always set response header
-			def _set_header(resp: Response) -> None:
-				resp.headers["X-Correlation-ID"] = correlation_id
-			_set_header_locally = _set_header
-			_set_header_locally(response)
 
-			if not sampled_out:
-				payload = _build_inbound_payload(request, correlation_id, status_code, duration_ms)
-				# Schedule background insert to avoid blocking response
-				response.background = BackgroundTask(_insert_inbound, payload)
+			if response is not None:
+				response.headers["X-Correlation-ID"] = correlation_id
+
+				if not sampled_out:
+					payload = _build_inbound_payload(request, correlation_id, status_code, duration_ms)
+					response.background = BackgroundTask(_insert_inbound, payload)
 
 		return response
 
