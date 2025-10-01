@@ -69,17 +69,11 @@ class UserRepository(BaseRepository[User]):
             filters={"is_active": True}
         )
     
-    def create_user(self, user_data: UserCreate, hashed_password: str) -> User:
-        """Create a new user with hashed password.
-        
-        Args:
-            user_data: User creation data
-            hashed_password: Pre-hashed password
-            
-        Returns:
-            Created User instance
-        """
-        return self.create(user_data, hashed_password=hashed_password)
+    def create_user(self, user_in: UserCreate, hashed_password: str) -> User:
+        user_data = user_in.model_dump(exclude={"password"})
+        user_data["hashed_password"] = hashed_password
+        return self.create(user_data)
+
     
     def deactivate_user(self, user_id: int) -> Optional[User]:
         """Deactivate a user account.
