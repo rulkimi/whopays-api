@@ -44,7 +44,6 @@ from app.schemas.file import (
 )
 from app.api.dependencies.storage import minio_client
 from app.core.config import settings
-from app.core.observability import log_outbound_call
 
 
 class FileService(BaseService):
@@ -258,20 +257,12 @@ class FileService(BaseService):
             
             # Upload to MinIO
             try:
-                def _upload():
-                    return minio_client.put_object(
-                        settings.MINIO_BUCKET,
-                        file_id,
-                        file.file,
-                        length=-1,
-                        part_size=10 * 1024 * 1024,
-                    )
-                log_outbound_call(
-                    provider="minio",
-                    target=file_id,
-                    operation="put_object",
-                    correlation_id=self.correlation_id,
-                    call=_upload,
+                minio_client.put_object(
+                    settings.MINIO_BUCKET,
+                    file_id,
+                    file.file,
+                    length=-1,  
+                    part_size=10 * 1024 * 1024,
                 )
 
                 self.log_operation(
@@ -336,15 +327,7 @@ class FileService(BaseService):
         
         try:
             try:
-                def _get():
-                    return minio_client.get_object(settings.MINIO_BUCKET, input_data.file_id)
-                response = log_outbound_call(
-                    provider="minio",
-                    target=input_data.file_id,
-                    operation="get_object",
-                    correlation_id=self.correlation_id,
-                    call=_get,
-                )
+                response = minio_client.get_object(settings.MINIO_BUCKET, input_data.file_id)
                 file_content = response.read()
                 content_length = len(file_content)
                 
@@ -423,18 +406,10 @@ class FileService(BaseService):
         
         try:
             try:
-                def _presign():
-                    return minio_client.presigned_get_object(
-                        settings.MINIO_BUCKET,
-                        input_data.file_id,
-                        expires=timedelta(minutes=input_data.expiry_minutes),
-                    )
-                raw_url = log_outbound_call(
-                    provider="minio",
-                    target=input_data.file_id,
-                    operation="presigned_get_object",
-                    correlation_id=self.correlation_id,
-                    call=_presign,
+                raw_url = minio_client.presigned_get_object(
+                    settings.MINIO_BUCKET,
+                    input_data.file_id,
+                    expires=timedelta(minutes=input_data.expiry_minutes),
                 )
                 
                 # Note: The original code had URL replacement logic that was commented out

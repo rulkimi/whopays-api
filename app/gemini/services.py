@@ -1,10 +1,9 @@
 from .client import client
 import json
 from google import genai
-from app.core.observability import log_outbound_call
 
 
-def get_ai_response(contents, response_schema: dict = None, content_type: str = "image/jpeg", correlation_id: str | None = None) -> str:
+def get_ai_response(contents, response_schema: dict = None, content_type: str = "image/jpeg") -> str:
     """Generate AI response with proper content formatting.
     
     Args:
@@ -41,17 +40,9 @@ def get_ai_response(contents, response_schema: dict = None, content_type: str = 
         "response_mime_type": "application/json",
         **({"response_schema": response_schema} if response_schema else {})
     }
-    def _call():
-        return client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=formatted_contents,
-            config=config,
-        )
-    response = log_outbound_call(
-        provider="gemini",
-        target="gemini-2.5-flash",
-        operation="generate_content",
-        correlation_id=correlation_id,
-        call=_call,
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=formatted_contents,
+        config=config,
     )
     return json.loads(response.text)

@@ -22,13 +22,8 @@ from app.repositories.job import JobRepository
 
 
 def get_correlation_id(request: Request) -> Optional[str]:
-	"""Extract or generate correlation ID for logging and tracing."""
-	from app.core.observability import generate_correlation_id
-	cid = getattr(request.state, "correlation_id", None)
-	if not cid:
-		cid = generate_correlation_id(request.headers.get("X-Correlation-ID"))
-		setattr(request.state, "correlation_id", cid)
-	return cid
+    """Extract correlation ID from request headers for logging."""
+    return request.headers.get("X-Correlation-ID")
 
 
 # Repository Dependencies

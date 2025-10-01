@@ -7,4 +7,3 @@ from app.db.models.receipt import Receipt
 from app.db.models.receipt_friend import ReceiptFriend
 from app.db.models.item_friend import ItemFriend
 from app.db.models.job import Job
-from app.db.models.request_log import RequestLog
