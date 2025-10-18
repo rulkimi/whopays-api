@@ -537,10 +537,10 @@ class ReceiptService(BaseService):
         receipt_subtotal: Decimal = Decimal("0")
 
         for item in getattr(receipt, "items", []) or []:
-            unit_price = Decimal(str(item.unit_price))
+            unit_price = Decimal(str(item.unit_price))  # This is the total price for all units
             quantity = int(item.quantity)
-            unit_total = unit_price
-            line_total = _round2(unit_total * Decimal(quantity))
+            unit_total = _round2(unit_price / Decimal(quantity))  # Price per person
+            line_total = unit_price  # Total price remains the same
 
             # Determine associated friends for this item (exclude soft-deleted and deleted friends)
             associated_friends: List[Friend] = []
