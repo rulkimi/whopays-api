@@ -148,6 +148,7 @@ class ReceiptRepository(BaseRepository[Receipt]):
         """
         create_data = {
             "restaurant_name": receipt_data.restaurant_name,
+            "subtotal": receipt_data.subtotal,
             "total_amount": receipt_data.total_amount,
             "tax": receipt_data.tax,
             "service_charge": receipt_data.service_charge,

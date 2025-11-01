@@ -120,12 +120,21 @@ class ReceiptService(BaseService):
                     )
                     
                     # Convert the dictionary response to ReceiptBase model
+                    # Ensure subtotal is present: use from AI if available, otherwise calculate it
+                    if "subtotal" not in ai_response_dict or ai_response_dict.get("subtotal") is None:
+                        # Calculate subtotal as fallback: total_amount - tax - service_charge
+                        total = float(ai_response_dict.get("total_amount", 0))
+                        tax = float(ai_response_dict.get("tax", 0))
+                        service_charge = float(ai_response_dict.get("service_charge", 0))
+                        ai_response_dict["subtotal"] = total - tax - service_charge
+                    
                     result = ReceiptBase(**ai_response_dict)
                     
                     self.log_operation(
                         "analyze_receipt_success",
                         restaurant_name=result.restaurant_name,
-                        items_count=len(result.items)
+                        items_count=len(result.items),
+                        subtotal=result.subtotal
                     )
                     return result
                     
@@ -168,9 +177,15 @@ class ReceiptService(BaseService):
         
         try:
             def _operation() -> Dict[str, Any]:
+                # Ensure subtotal is present in receipt_data
+                receipt_data = sanitized_input.receipt_data
+                if not hasattr(receipt_data, 'subtotal') or receipt_data.subtotal is None:
+                    # Calculate subtotal as fallback: total_amount - tax - service_charge
+                    receipt_data.subtotal = receipt_data.total_amount - receipt_data.tax - receipt_data.service_charge
+                
                 # Create the receipt first
                 receipt = self.receipt_repo.create_receipt(
-                    receipt_data=sanitized_input.receipt_data,
+                    receipt_data=receipt_data,
                     user_id=user_id,
                     receipt_url=sanitized_input.receipt_url
                 )
@@ -343,6 +358,7 @@ class ReceiptService(BaseService):
             id=receipt.id,
             user_id=receipt.user_id,
             restaurant_name=receipt.restaurant_name,
+            subtotal=float(receipt.subtotal),
             total_amount=float(receipt.total_amount),
             tax=float(receipt.tax),
             service_charge=float(receipt.service_charge),

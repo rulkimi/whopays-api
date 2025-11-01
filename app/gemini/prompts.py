@@ -9,6 +9,8 @@ def create_analysis_prompt() -> str:
 	- Treat every price, tax, and service charge as independent fields.
 	- Do not merge, sum, or subtract values.
 	- If the bill separates the items, do NOT combine them—follow exactly what the bill wrote, including values as displayed.
+	- Extract subtotal if it is explicitly shown on the receipt (usually the sum before tax and service charge).
+	- If subtotal is not explicitly shown on the receipt, calculate it as: total_amount - tax - service_charge.
 	"""
 
 	item_detection_rules = """

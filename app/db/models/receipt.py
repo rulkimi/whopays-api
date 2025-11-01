@@ -7,6 +7,7 @@ class Receipt(Base, AuditMixin):
 
 	id = Column(Integer, primary_key=True, index=True)
 	restaurant_name = Column(String, index=True, nullable=False)
+	subtotal = Column(Float, nullable=False)
 	total_amount = Column(Float, nullable=False)
 	tax = Column(Float, nullable=False)
 	service_charge = Column(Float, nullable=False)
