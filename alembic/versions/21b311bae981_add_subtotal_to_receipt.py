@@ -35,7 +35,7 @@ def upgrade() -> None:
     )
     # Update all existing receipts with calculated subtotal
     conn.execute(
-        sa.update(receipts_table).values(
+        receipts_table.update().values(
             subtotal=receipts_table.c.total_amount - receipts_table.c.tax - receipts_table.c.service_charge
         )
     )
