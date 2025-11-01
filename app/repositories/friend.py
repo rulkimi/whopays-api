@@ -24,12 +24,38 @@ class FriendRepository(BaseRepository[Friend]):
         Returns:
             List of Friend instances for the user
         """
-        return self.get_multi(
+        self._log_operation("get_by_user_start", user_id=user_id, skip=skip, limit=limit)
+        
+        # Direct query for debugging
+        direct_query = self.db.query(self.model).filter(
+            self.model.user_id == user_id,
+            self.model.is_deleted == False
+        )
+        
+        direct_count = direct_query.count()
+        self._log_operation("get_by_user_direct_query_count", user_id=user_id, count=direct_count)
+        
+        # Also check with is_deleted check disabled temporarily for debugging
+        all_friends_count = self.db.query(self.model).filter(
+            self.model.user_id == user_id
+        ).count()
+        self._log_operation("get_by_user_all_friends_count", user_id=user_id, count=all_friends_count)
+        
+        result = self.get_multi(
             skip=skip,
             limit=limit,
             filters={"user_id": user_id},
             order_by="name"
         )
+        
+        self._log_operation(
+            "get_by_user_result",
+            user_id=user_id,
+            result_count=len(result),
+            friend_ids=[f.id for f in result] if result else []
+        )
+        
+        return result
     
     def get_by_id_and_user(self, friend_id: int, user_id: int) -> Optional[Friend]:
         """Get friend by ID for a specific user.

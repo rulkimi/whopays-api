@@ -199,6 +199,8 @@ class FriendService(BaseService):
                     Friend.is_deleted == False
                 ).all()
                 
+                self.log_operation("get_friends_null_names_check", user_id=user_id, null_name_count=len(friends_with_null_names))
+                
                 for friend in friends_with_null_names:
                     friend.name = "Friend"
                 
@@ -206,21 +208,69 @@ class FriendService(BaseService):
                     db.flush()  # Ensure the updates are committed
                 
                 # Get all friends for user
+                self.log_operation("get_friends_calling_repo", user_id=user_id)
                 friends = self.friend_repo.get_by_user(user_id=user_id)
                 
                 self.log_operation(
-                    "get_friends_success", 
+                    "get_friends_repo_result", 
                     user_id=user_id,
-                    count=len(friends)
+                    count=len(friends),
+                    friend_ids=[f.id for f in friends] if friends else []
                 )
+                
+                # Log each friend's details
+                for friend in friends:
+                    self.log_operation(
+                        "get_friends_friend_detail",
+                        friend_id=friend.id,
+                        friend_name=friend.name,
+                        friend_user_id=friend.user_id,
+                        friend_is_deleted=getattr(friend, 'is_deleted', None),
+                        friend_photo_url=getattr(friend, 'photo_url', None)
+                    )
+                
                 return friends
             
             result = self.run_in_transaction(db, _get_friends)
-            friends_data = [FriendRead.model_validate(friend) for friend in result]
+            
+            self.log_operation("get_friends_after_transaction", user_id=user_id, result_count=len(result) if result else 0)
+            
+            # Convert to schema with detailed logging
+            friends_data = []
+            for idx, friend in enumerate(result):
+                try:
+                    friend_data = FriendRead.model_validate(friend)
+                    friends_data.append(friend_data)
+                    self.log_operation(
+                        "get_friends_validate_success",
+                        user_id=user_id,
+                        friend_index=idx,
+                        friend_id=friend.id,
+                        friend_name=friend_data.name
+                    )
+                except Exception as validate_error:
+                    self.log_operation(
+                        "get_friends_validate_error",
+                        user_id=user_id,
+                        friend_index=idx,
+                        friend_id=getattr(friend, 'id', None),
+                        error_type=type(validate_error).__name__,
+                        error_message=str(validate_error)
+                    )
+                    # Continue with other friends even if one fails
+                    continue
+            
+            self.log_operation(
+                "get_friends_final_result",
+                user_id=user_id,
+                friends_count=len(friends_data),
+                friend_ids=[f.id for f in friends_data]
+            )
+            
             return GetFriendsResult(
                 success=True,
                 data=friends_data,
-                message="Friends retrieved successfully"
+                message=f"Friends retrieved successfully: {len(friends_data)} friends"
             )
             
         except Exception as e:
@@ -228,6 +278,7 @@ class FriendService(BaseService):
                 "get_friends_error",
                 error_type=type(e).__name__,
                 error_message=str(e),
+                error_traceback=str(e.__traceback__) if hasattr(e, '__traceback__') else None,
                 user_id=user_id
             )
             raise

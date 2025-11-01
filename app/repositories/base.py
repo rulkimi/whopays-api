@@ -124,12 +124,16 @@ class BaseRepository(Generic[ModelType], ABC):
         # Apply soft delete filter if model has AuditMixin
         if not include_deleted and hasattr(self.model, 'is_deleted'):
             query = query.filter(self.model.is_deleted == False)
+            self._log_operation("get_multi_soft_delete_filter", model=self.model.__name__, include_deleted=include_deleted, has_is_deleted=hasattr(self.model, 'is_deleted'))
         
         # Apply additional filters
         if filters:
             for field, value in filters.items():
                 if hasattr(self.model, field):
                     query = query.filter(getattr(self.model, field) == value)
+                    self._log_operation("get_multi_applying_filter", model=self.model.__name__, field=field, value=value)
+                else:
+                    self._log_operation("get_multi_filter_field_not_found", model=self.model.__name__, field=field)
         
         # Apply ordering
         if order_by and hasattr(self.model, order_by):
@@ -139,9 +143,32 @@ class BaseRepository(Generic[ModelType], ABC):
                 query = query.order_by(order_field.desc())
             else:
                 query = query.order_by(order_field)
+            self._log_operation("get_multi_applying_order", model=self.model.__name__, order_by=order_by)
+        else:
+            self._log_operation("get_multi_no_order", model=self.model.__name__, order_by=order_by, has_order_by=hasattr(self.model, order_by) if order_by else None)
+        
+        # Log query before execution
+        self._log_operation("get_multi_before_execution", model=self.model.__name__, skip=skip, limit=limit)
         
         results = query.offset(skip).limit(limit).all()
-        self._log_operation("get_multi", model=self.model.__name__, count=len(results), skip=skip, limit=limit)
+        
+        # Log detailed results
+        result_details = []
+        for r in results:
+            result_details.append({
+                "id": getattr(r, 'id', None),
+                "is_deleted": getattr(r, 'is_deleted', None),
+                "user_id": getattr(r, 'user_id', None) if hasattr(r, 'user_id') else None
+            })
+        
+        self._log_operation(
+            "get_multi",
+            model=self.model.__name__,
+            count=len(results),
+            skip=skip,
+            limit=limit,
+            result_details=result_details
+        )
         return results
     
     def update(self, id: int, obj_in: UpdateSchemaType, **kwargs: Any) -> Optional[ModelType]:

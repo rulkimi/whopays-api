@@ -39,9 +39,23 @@ def get_friends(
 	"""
 	Get all friends for the current user.
 	"""
+	import logging
+	logger = logging.getLogger(__name__)
+	
+	logger.info(f"get_friends endpoint called for user_id={current_user.id}")
+	
 	result = friend_service.get_friends(current_user.id, db)
+	
+	logger.info(f"get_friends service result: success={result.success}, message={result.message}, data_count={len(result.data) if result.data else 0}")
+	
+	if result.data:
+		logger.info(f"get_friends data details: {[{'id': f.id, 'name': f.name, 'user_id': f.user_id} for f in result.data]}")
+	
 	if not result.success:
+		logger.error(f"get_friends failed: {result.message}")
 		raise HTTPException(status_code=500, detail=result.message)
+	
+	logger.info(f"get_friends returning {len(result.data) if result.data else 0} friends")
 	return result.data
 
 @router.delete("/{friend_id}", status_code=204)
