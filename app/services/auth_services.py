@@ -19,7 +19,7 @@ from app.services.exceptions import (
 )
 from app.repositories.user import UserRepository
 from app.db.models.user import User
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import get_password_hash, verify_password, create_access_token, create_refresh_token
 from app.schemas.user import UserCreate
 from app.schemas.auth import UserLogin, AuthResult, RegistrationResult, Token
 
@@ -184,8 +184,13 @@ class AuthService(BaseService):
             if not verify_password(login_data.password, user.hashed_password):
                 raise InvalidPasswordError(correlation_id=self.correlation_id)
 
-            # Create and return access token
-            token = create_access_token({"sub": str(user.id)})
+            # Create access and refresh tokens
+            access_token = create_access_token({"sub": str(user.id)})
+            refresh_token = create_refresh_token({"sub": str(user.id)})
+            
+            # Calculate expiration time in seconds
+            from app.core.config import settings
+            expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Convert minutes to seconds
             
             self.log_operation(
                 "authenticate_user_success", 
@@ -195,7 +200,12 @@ class AuthService(BaseService):
             
             return AuthResult(
                 success=True,
-                token=Token(access_token=token, token_type="bearer")
+                token=Token(
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    token_type="bearer",
+                    expires_in=expires_in
+                )
             )
             
         except (UserNotFoundError, UserInactiveError, InvalidPasswordError) as e:

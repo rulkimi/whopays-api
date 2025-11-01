@@ -8,7 +8,9 @@ import re
 class Token(BaseModel):
     """JWT token response model."""
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+    expires_in: int  # Token expiration time in seconds
 
 
 class TokenData(BaseModel):
@@ -65,7 +67,9 @@ class AuthResult(BaseModel):
                 "success": True,
                 "token": {
                     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-                    "token_type": "bearer"
+                    "refresh_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+                    "token_type": "bearer",
+                    "expires_in": 1800
                 }
             }
         }
