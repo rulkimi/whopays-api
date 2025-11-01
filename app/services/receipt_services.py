@@ -230,17 +230,18 @@ class ReceiptService(BaseService):
                     # Verify friends ownership
                     valid_friends = self._verify_friends_ownership(sanitized_input.friend_ids, user_id, db)
                     
-                    # Remove existing receipt-friend associations
-                    existing_receipt_friends = self.receipt_friend_repo.get_receipt_friends(receipt_id)
-                    for rf in existing_receipt_friends:
-                        if hasattr(rf, 'is_deleted'):
-                            rf.is_deleted = True
+                    # Remove existing receipt-friend associations (using clear_receipt_friends to properly delete ReceiptFriend records)
+                    self.receipt_friend_repo.clear_receipt_friends(receipt_id)
                     
                     # Add friends to receipt
                     self.receipt_friend_repo.add_friends_to_receipt(
                         receipt_id=receipt.id,
                         friend_ids=[f.id for f in valid_friends]
                     )
+                else:
+                    # If no friend_ids provided, preserve existing associations by doing nothing
+                    # (don't clear them since they were set when receipt was created)
+                    pass
                 
                 self.log_operation(
                     "update_receipt_with_items_success",
