@@ -148,7 +148,7 @@ class FriendService(BaseService):
                 return friend
             
             result = self.run_in_transaction(db, _create_friend)
-            friend_data = FriendRead.from_orm(result)
+            friend_data = FriendRead.model_validate(result)
             return CreateFriendResult(
                 success=True,
                 data=friend_data,
@@ -216,7 +216,7 @@ class FriendService(BaseService):
                 return friends
             
             result = self.run_in_transaction(db, _get_friends)
-            friends_data = [FriendRead.from_orm(friend) for friend in result]
+            friends_data = [FriendRead.model_validate(friend) for friend in result]
             return GetFriendsResult(
                 success=True,
                 data=friends_data,
@@ -378,7 +378,7 @@ class FriendService(BaseService):
                 return friend
             
             result = self.run_in_transaction(db, _update_friend)
-            friend_data = FriendRead.from_orm(result)
+            friend_data = FriendRead.model_validate(result)
             return UpdateFriendResult(
                 success=True,
                 data=friend_data,
