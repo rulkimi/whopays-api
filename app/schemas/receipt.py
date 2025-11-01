@@ -34,6 +34,7 @@ class ReceiptRead(ReceiptBase):
 	id: int
 	user_id: int
 	receipt_url: Optional[str]
+	status: str = "ready"  # processing, ready, failed
 	friends: List[FriendRead]
 	
 	class Config:

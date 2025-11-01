@@ -135,13 +135,40 @@ class ReceiptRepository(BaseRepository[Receipt]):
         self._log_operation("get_with_items", receipt_id=receipt_id, user_id=user_id, found=result is not None)
         return result
     
-    def create_receipt(self, receipt_data: ReceiptBase, user_id: int, receipt_url: Optional[str] = None) -> Receipt:
+    def create_minimal_receipt(self, user_id: int, receipt_url: Optional[str] = None, restaurant_name: str = "Processing...", status: str = "processing") -> Receipt:
+        """Create a minimal receipt with placeholder data.
+        
+        Args:
+            user_id: Owner user ID
+            receipt_url: Optional receipt image URL
+            restaurant_name: Placeholder restaurant name
+            status: Receipt status (default: "processing")
+            
+        Returns:
+            Created Receipt instance
+        """
+        create_data = {
+            "restaurant_name": restaurant_name,
+            "subtotal": 0.0,
+            "total_amount": 0.0,
+            "tax": 0.0,
+            "service_charge": 0.0,
+            "currency": "USD",
+            "receipt_url": receipt_url,
+            "user_id": user_id,
+            "status": status
+        }
+        
+        return self.create(create_data)
+    
+    def create_receipt(self, receipt_data: ReceiptBase, user_id: int, receipt_url: Optional[str] = None, status: str = "ready") -> Receipt:
         """Create a new receipt.
         
         Args:
             receipt_data: Receipt creation data
             user_id: Owner user ID
             receipt_url: Optional receipt image URL
+            status: Receipt status (default: "ready")
             
         Returns:
             Created Receipt instance
@@ -154,10 +181,38 @@ class ReceiptRepository(BaseRepository[Receipt]):
             "service_charge": receipt_data.service_charge,
             "currency": receipt_data.currency,
             "receipt_url": receipt_url,
-            "user_id": user_id
+            "user_id": user_id,
+            "status": status
         }
         
         return self.create(create_data)
+    
+    def update_receipt(self, receipt_id: int, receipt_data: ReceiptBase, receipt_url: Optional[str] = None, status: str = "ready") -> Optional[Receipt]:
+        """Update an existing receipt with new data.
+        
+        Args:
+            receipt_id: Receipt ID to update
+            receipt_data: Receipt update data
+            receipt_url: Optional receipt image URL
+            status: Receipt status (default: "ready")
+            
+        Returns:
+            Updated Receipt instance or None if not found
+        """
+        update_data = {
+            "restaurant_name": receipt_data.restaurant_name,
+            "subtotal": receipt_data.subtotal,
+            "total_amount": receipt_data.total_amount,
+            "tax": receipt_data.tax,
+            "service_charge": receipt_data.service_charge,
+            "currency": receipt_data.currency,
+            "status": status
+        }
+        
+        if receipt_url is not None:
+            update_data["receipt_url"] = receipt_url
+        
+        return self.update(receipt_id, update_data)
     
     def search_by_restaurant(self, user_id: int, restaurant_name: str, skip: int = 0, limit: int = 100) -> List[Receipt]:
         """Search receipts by restaurant name for a user.

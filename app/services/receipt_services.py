@@ -170,6 +170,119 @@ class ReceiptService(BaseService):
             )
             raise
 
+    def update_receipt_with_items(self, receipt_id: int, input_data: CreateReceiptInput, user_id: int, db: Session) -> CreateReceiptResult:
+        """Update receipt with items and friend associations."""
+        sanitized_input = self._sanitize_input(input_data)
+        self.log_operation("update_receipt_with_items_attempt", receipt_id=receipt_id, user_id=user_id)
+        
+        try:
+            def _operation() -> Dict[str, Any]:
+                # Verify receipt exists and is owned by user
+                existing_receipt = self.receipt_repo.get_by_id_and_user(receipt_id, user_id)
+                if not existing_receipt:
+                    raise ReceiptNotFoundError(
+                        receipt_id=receipt_id,
+                        user_id=user_id,
+                        correlation_id=self.correlation_id
+                    )
+                
+                # Ensure subtotal is present in receipt_data
+                receipt_data = sanitized_input.receipt_data
+                if not hasattr(receipt_data, 'subtotal') or receipt_data.subtotal is None:
+                    # Calculate subtotal as fallback: total_amount - tax - service_charge
+                    receipt_data.subtotal = receipt_data.total_amount - receipt_data.tax - receipt_data.service_charge
+                
+                # Delete existing items for this receipt
+                existing_items = self.item_repo.get_multi(filters={"receipt_id": receipt_id})
+                for item in existing_items:
+                    # Delete item variations first
+                    if hasattr(item, 'variations'):
+                        for variation in item.variations:
+                            if hasattr(variation, 'is_deleted'):
+                                variation.is_deleted = True
+                    # Delete item
+                    if hasattr(item, 'is_deleted'):
+                        item.is_deleted = True
+                
+                # Update the receipt
+                receipt = self.receipt_repo.update_receipt(
+                    receipt_id=receipt_id,
+                    receipt_data=receipt_data,
+                    receipt_url=sanitized_input.receipt_url,
+                    status="ready"
+                )
+                
+                if not receipt:
+                    raise ReceiptNotFoundError(
+                        receipt_id=receipt_id,
+                        user_id=user_id,
+                        correlation_id=self.correlation_id
+                    )
+                
+                # Create new items with variations
+                created_items = []
+                for item_data in sanitized_input.receipt_data.items:
+                    item = self.item_repo.create_item_with_variations(item_data, receipt.id)
+                    created_items.append(item)
+                
+                # Clear existing receipt-friend associations and create new ones
+                if sanitized_input.friend_ids:
+                    # Verify friends ownership
+                    valid_friends = self._verify_friends_ownership(sanitized_input.friend_ids, user_id, db)
+                    
+                    # Remove existing receipt-friend associations
+                    existing_receipt_friends = self.receipt_friend_repo.get_receipt_friends(receipt_id)
+                    for rf in existing_receipt_friends:
+                        if hasattr(rf, 'is_deleted'):
+                            rf.is_deleted = True
+                    
+                    # Add friends to receipt
+                    self.receipt_friend_repo.add_friends_to_receipt(
+                        receipt_id=receipt.id,
+                        friend_ids=[f.id for f in valid_friends]
+                    )
+                
+                self.log_operation(
+                    "update_receipt_with_items_success",
+                    receipt_id=receipt.id,
+                    items_count=len(created_items),
+                    friends_count=len(sanitized_input.friend_ids) if sanitized_input.friend_ids else 0
+                )
+                
+                return {
+                    "receipt_id": receipt.id,
+                    "restaurant_name": receipt.restaurant_name,
+                    "total_amount": receipt.total_amount,
+                    "items_count": len(created_items),
+                    "friends_count": len(sanitized_input.friend_ids) if sanitized_input.friend_ids else 0
+                }
+            
+            result = self.run_in_transaction(db, _operation)
+            return CreateReceiptResult(
+                success=True,
+                data=result,
+                message="Receipt updated successfully with items"
+            )
+            
+        except (ReceiptNotFoundError, ReceiptCreationError) as e:
+            self.log_operation(
+                "update_receipt_with_items_failed",
+                error_code=e.error_code,
+                reason=e.error_code.lower()
+            )
+            return CreateReceiptResult(
+                success=False,
+                error_code=e.error_code,
+                message=e.message
+            )
+        except Exception as e:
+            self.log_operation(
+                "update_receipt_with_items_error",
+                error_type=type(e).__name__,
+                error_message=str(e)
+            )
+            raise
+
     def create_receipt_with_items(self, input_data: CreateReceiptInput, user_id: int, db: Session) -> CreateReceiptResult:
         """Create receipt with items and friend associations."""
         sanitized_input = self._sanitize_input(input_data)
@@ -364,6 +477,7 @@ class ReceiptService(BaseService):
             service_charge=float(receipt.service_charge),
             currency=receipt.currency,
             receipt_url=receipt.receipt_url,
+            status=getattr(receipt, 'status', 'ready'),
             created_at=receipt.created_at,
             updated_at=receipt.updated_at,
             items=items_data,

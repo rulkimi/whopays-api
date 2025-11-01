@@ -13,6 +13,7 @@ class Receipt(Base, AuditMixin):
 	service_charge = Column(Float, nullable=False)
 	currency = Column(String, index=True, nullable=False)
 	receipt_url = Column(String, index=True, nullable=True)
+	status = Column(String, index=True, nullable=False, default="processing")  # processing, ready, failed
 
 	user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 

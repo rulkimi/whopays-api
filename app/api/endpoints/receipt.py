@@ -28,6 +28,7 @@ def analyze_and_create_receipt(
     content_type: str = "image/jpeg",
     job_id: int | None = None,
     job_service: JobService | None = None,
+    receipt_id: int | None = None,
 ):
     try:
         if job_id and job_service:
@@ -42,34 +43,67 @@ def analyze_and_create_receipt(
         if result.success:
             if job_id and job_service:
                 job_service.progress(job_id, 70, db)
-            # Create receipt with items using the new method
-            create_input = CreateReceiptInput(
-                receipt_data=result.data,
-                friend_ids=friend_ids,
-                receipt_url=receipt_url
-            )
-            create_result = receipt_service.create_receipt_with_items(create_input, user_id, db)
             
-            if create_result.success:
-                if job_id and job_service:
-                    job_service.succeed(job_id, create_result.data["receipt_id"], db)
-                return create_result.data
+            if receipt_id:
+                # Update existing receipt with items
+                create_input = CreateReceiptInput(
+                    receipt_data=result.data,
+                    friend_ids=friend_ids,
+                    receipt_url=receipt_url
+                )
+                update_result = receipt_service.update_receipt_with_items(receipt_id, create_input, user_id, db)
+                
+                if update_result.success:
+                    if job_id and job_service:
+                        job_service.succeed(job_id, update_result.data["receipt_id"], db)
+                    return update_result.data
+                else:
+                    if job_id and job_service:
+                        job_service.fail(job_id, update_result.error_code or "RECEIPT_UPDATE_FAILED", update_result.message or "Failed", db)
+                    # Update receipt status to failed
+                    from app.repositories.receipt import ReceiptRepository
+                    receipt_repo = ReceiptRepository(db, correlation_id=None)
+                    receipt_repo.update(receipt_id, {"status": "failed"})
+                    return None
             else:
-                if job_id and job_service:
-                    job_service.fail(job_id, create_result.error_code or "RECEIPT_CREATION_FAILED", create_result.message or "Failed", db)
-                return None
+                # Fallback: create receipt with items (for backwards compatibility)
+                create_input = CreateReceiptInput(
+                    receipt_data=result.data,
+                    friend_ids=friend_ids,
+                    receipt_url=receipt_url
+                )
+                create_result = receipt_service.create_receipt_with_items(create_input, user_id, db)
+                
+                if create_result.success:
+                    if job_id and job_service:
+                        job_service.succeed(job_id, create_result.data["receipt_id"], db)
+                    return create_result.data
+                else:
+                    if job_id and job_service:
+                        job_service.fail(job_id, create_result.error_code or "RECEIPT_CREATION_FAILED", create_result.message or "Failed", db)
+                    return None
         else:
             if job_id and job_service:
                 job_service.fail(job_id, result.error_code or "RECEIPT_ANALYSIS_FAILED", result.message or "Failed", db)
+            # Update receipt status to failed if it exists
+            if receipt_id:
+                from app.repositories.receipt import ReceiptRepository
+                receipt_repo = ReceiptRepository(db)
+                receipt_repo.update(receipt_id, {"status": "failed"})
             return None
             
     except Exception as e:
         # Optionally log the error here
         if job_id and job_service:
             job_service.fail(job_id, "UNEXPECTED_ERROR", str(e), db)
+        # Update receipt status to failed if it exists
+        if receipt_id:
+            from app.repositories.receipt import ReceiptRepository
+            receipt_repo = ReceiptRepository(db)
+            receipt_repo.update(receipt_id, {"status": "failed"})
         return None
 
-@router.post("", status_code=202)
+@router.post("", status_code=201)
 async def upload_and_analyze_receipt_image(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
@@ -78,9 +112,10 @@ async def upload_and_analyze_receipt_image(
     current_user: User = Depends(get_current_user),
     receipt_service: ReceiptService = Depends(get_receipt_service),
     file_service: FileService = Depends(get_file_service),
-    job_service: JobService = Depends(get_job_service)
+    job_service: JobService = Depends(get_job_service),
+    receipt_friend_service: ReceiptFriendService = Depends(get_receipt_friend_service)
 ):
-    """Upload receipt image and start background analysis"""
+    """Upload receipt image and start background analysis. Creates receipt immediately with processing status."""
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Only image files are accepted.")
 
@@ -105,13 +140,39 @@ async def upload_and_analyze_receipt_image(
     
     receipt_url = upload_result.data  # file_id can be used as URL reference
 
-    # Create job and start background task for analysis and DB creation
+    # Create receipt immediately with processing status
+    from app.repositories.receipt import ReceiptRepository
+    receipt_repo = ReceiptRepository(db, correlation_id=None)
+    receipt = receipt_repo.create_minimal_receipt(
+        user_id=current_user.id,
+        receipt_url=receipt_url,
+        restaurant_name="Processing...",
+        status="processing"
+    )
+    
+    # Associate friends with receipt if provided (before processing)
+    if friend_ids:
+        from app.schemas.receipt import AddFriendsToReceiptInput
+        add_friends_input = AddFriendsToReceiptInput(receipt_id=receipt.id, friend_ids=friend_ids)
+        receipt_friend_service.add_friends_to_receipt(add_friends_input, current_user.id, db)
+        
+        # Get friends for response
+        from app.schemas.receipt import GetReceiptFriendsInput
+        get_friends_input = GetReceiptFriendsInput(receipt_id=receipt.id)
+        friends_result = receipt_friend_service.get_receipt_friends(get_friends_input, current_user.id, db)
+        friends_data = friends_result.data if friends_result.success else []
+    else:
+        friends_data = []
+
+    # Create job and start background task for analysis and receipt update
     from app.schemas.job import JobType
     job = job_service.create_job(current_user.id, job_type=JobType.RECEIPT_ANALYSIS, payload={
         "receipt_url": receipt_url,
+        "receipt_id": receipt.id,
         "friend_ids": friend_ids,
         "content_type": file.content_type or "image/jpeg"
     }, db=db)
+    
     background_tasks.add_task(
         analyze_and_create_receipt,
         db,
@@ -122,12 +183,29 @@ async def upload_and_analyze_receipt_image(
         receipt_service,
         file.content_type or "image/jpeg",
         job.id,
-        job_service
+        job_service,
+        receipt.id  # Pass receipt_id to background task
     )
-    # Return 202 Accepted with job reference
-    from fastapi import Response
-    headers = {"Location": f"/jobs/{job.id}"}
-    return Response(content=__import__('json').dumps({"job_id": job.id, "status": "PENDING"}), media_type="application/json", headers=headers, status_code=202)
+    
+    # Return 201 Created with receipt info
+    from app.schemas.receipt import ReceiptRead
+    receipt_data = ReceiptRead(
+        id=receipt.id,
+        user_id=receipt.user_id,
+        restaurant_name=receipt.restaurant_name,
+        subtotal=receipt.subtotal,
+        total_amount=receipt.total_amount,
+        tax=receipt.tax,
+        service_charge=receipt.service_charge,
+        currency=receipt.currency,
+        receipt_url=receipt.receipt_url,
+        status=receipt.status,
+        items=[],
+        friends=friends_data,
+        created_at=receipt.created_at,
+        updated_at=receipt.updated_at
+    )
+    return receipt_data
 
 @router.get("/{receipt_id}", response_model=ReceiptRead)
 async def retrieve_receipt_by_id(
