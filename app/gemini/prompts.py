@@ -8,6 +8,8 @@ def create_analysis_prompt() -> str:
     - Correctly associate prices with each item/modification.  
     - Identify modifiers even if they appear on the same line, next line, or with special characters.  
     - Ignore unrelated text (e.g., store notes, discounts not associated with an item).
+    
+    NOTE: Sometimes the subtotal is already inclusive of the tax as shown on the receipt, and only a rounding adjustment may be missing. Be aware of this scenario and ensure that your output reflects the true values from the receipt, accounting for possible inclusivity of taxes in the subtotal or total.
     """
 
     item_detection_rules = """

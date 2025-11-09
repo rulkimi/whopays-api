@@ -24,12 +24,12 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 	).first()
 	if not receipt:
 		return None
-	
+
 	items: List[Item] = db.query(Item).filter(
 		Item.receipt_id == receipt_id,
 		Item.is_deleted == False
 	).all()
-	
+
 	# Preload item → friends map
 	item_friend_map: Dict[int, List[Friend]] = {}
 	if items:
@@ -40,12 +40,12 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 		).all()
 		for link in item_friend_links:
 			item_friend_map.setdefault(link.item_id, []).append(link.friend)
-	
+
 	friend_totals: Dict[int, Dict[str, Decimal]] = {}
 	# Will collect detailed item breakdowns for the whole receipt
 	items_out: List[dict] = []
 	subtotal_all = Decimal("0.00")
-	
+
 	for item in items:
 		# Load variations from DB to be consistent
 		vars: List[Variation] = db.query(Variation).filter(
@@ -56,13 +56,12 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 		unit_addons = sum(Decimal(str(v.price)) for v in vars) if vars else Decimal("0.00")
 		unit_total = unit_base + unit_addons
 		line_total = unit_total * Decimal(str(item.quantity))
-		
+
 		friends = item_friend_map.get(item.id, [])
 		if not friends:
 			# If item has no assigned friends, skip splitting it.
-			# Alternatively: assign to all receipt friends — change behavior if desired.
 			continue
-		
+
 		split_count = len(friends)
 		share = (line_total / split_count)
 
@@ -90,7 +89,7 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 			]
 		}
 		items_out.append(item_entry)
-		
+
 		for f in friends:
 			fd = friend_totals.setdefault(
 				f.id,
@@ -110,9 +109,9 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 				"line_total": float(_round2(line_total)),
 				"share": float(_round2(share))
 			})
-		
+
 		subtotal_all += line_total
-	
+
 	if subtotal_all == 0:
 		return {
 			"receipt_id": receipt.id,
@@ -120,11 +119,12 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 			"totals": [],
 			"summary": {"subtotal": 0.0, "tax": 0.0, "service_charge": 0.0, "total": 0.0}
 		}
-	
+
 	# Allocate tax and service charge proportional to subtotals
 	tax_total = Decimal(str(receipt.tax))
 	svc_total = Decimal(str(receipt.service_charge))
-	
+	receipt_total_from_db = Decimal(str(receipt.total_amount))
+
 	# First pass rounding
 	per_friend = []
 	acc_tax = Decimal("0.00")
@@ -143,7 +143,7 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 			"tax": ftax,
 			"service_charge": fsvc
 		})
-	
+
 	# Distribute rounding residuals to the friend(s) with largest subtotal
 	tax_residual = tax_total - acc_tax
 	svc_residual = svc_total - acc_svc
@@ -153,33 +153,64 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 			per_friend[0]["tax"] += tax_residual
 		if svc_residual != 0:
 			per_friend[0]["service_charge"] += svc_residual
-	
-	# Build results (rounded floats)
-	totals_out = []
-	for f in per_friend:
-		total = f["subtotal"] + f["tax"] + f["service_charge"]
-		totals_out.append({
-			"id": f["id"],
-			"name": f["name"],
-			"photo_url": f.get("photo_url"),
-			"subtotal": float(_round2(f["subtotal"])),
-			"tax": float(_round2(f["tax"])),
-			"service_charge": float(_round2(f["service_charge"])),
-			"total": float(_round2(total)),
-			"items": friend_totals[f["id"]].get("items", [])
-		})
-	
-	summary_total = float(_round2(Decimal(str(receipt.total_amount))))
+
+	# Prepare list of all friend raw totals
+	friend_ids_ordered = [f["id"] for f in per_friend]
+	raw_totals = [f["subtotal"] + f["tax"] + f["service_charge"] for f in per_friend]
+	raw_total_sum = sum(raw_totals)
+	db_total = receipt_total_from_db
+
+	final_totals = []
+	if per_friend:
+		# Distribute receipt total from DB proportionally according to each friend's share of the calculated overall sum
+		if raw_total_sum > 0:
+			adjusted_totals = []
+			accum_adj = Decimal("0.00")
+			# Calculate each friend's share proportional to the sum, discard rounding
+			for idx, raw_total in enumerate(raw_totals):
+				if idx < len(per_friend)-1:
+					adj_total = _round2(db_total * (raw_total / raw_total_sum))
+					adjusted_totals.append(adj_total)
+					accum_adj += adj_total
+				else:
+					adj_total = db_total - accum_adj
+					adj_total = _round2(adj_total)
+					adjusted_totals.append(adj_total)
+			# Now populate final friend dicts, still preserve item/tax/svc breakdowns
+			for f, adjusted in zip(per_friend, adjusted_totals):
+				final_totals.append({
+					"id": f["id"],
+					"name": f["name"],
+					"photo_url": f.get("photo_url"),
+					"subtotal": float(_round2(f["subtotal"])),
+					"tax": float(_round2(f["tax"])),
+					"service_charge": float(_round2(f["service_charge"])),
+					"total": float(_round2(adjusted)),
+					"items": friend_totals[f["id"]].get("items", [])
+				})
+		else:
+			for f in per_friend:
+				final_totals.append({
+					"id": f["id"],
+					"name": f["name"],
+					"photo_url": f.get("photo_url"),
+					"subtotal": float(_round2(f["subtotal"])),
+					"tax": float(_round2(f["tax"])),
+					"service_charge": float(_round2(f["service_charge"])),
+					"total": 0.0,
+					"items": friend_totals[f["id"]].get("items", [])
+				})
+
 	return {
 		"receipt_id": receipt.id,
 		"currency": receipt.currency,
-		"totals": totals_out,
+		"totals": final_totals,
 		"items": items_out,
 		"summary": {
 			"subtotal": float(_round2(subtotal_all)),
 			"tax": float(_round2(tax_total)),
 			"service_charge": float(_round2(svc_total)),
-			"total": float(_round2(subtotal_all + tax_total + svc_total))
+			"total": float(_round2(receipt_total_from_db))
 		},
 		"note": "Items without assigned friends are excluded from splits. Assign item friends to include them."
 	}
