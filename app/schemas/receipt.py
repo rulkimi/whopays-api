@@ -19,6 +19,7 @@ class Item(BaseModel):
 
 class ReceiptBase(TimestampModel):
 	restaurant_name: str
+	subtotal: float
 	total_amount: float
 	tax: float
 	service_charge: float

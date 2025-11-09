@@ -22,6 +22,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 	
 	db_receipt = Receipt(
 		restaurant_name=receipt_data.restaurant_name,
+		subtotal=receipt_data.subtotal,
 		total_amount=receipt_data.total_amount,
 		tax=receipt_data.tax,
 		service_charge=receipt_data.service_charge,
@@ -105,6 +106,7 @@ def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: i
 		"user_id": db_receipt.user_id,
 		"receipt_url": db_receipt.receipt_url,
 		"restaurant_name": db_receipt.restaurant_name,
+		"subtotal": db_receipt.subtotal,
 		"total_amount": db_receipt.total_amount,
 		"tax": db_receipt.tax,
 		"service_charge": db_receipt.service_charge,
@@ -179,12 +181,13 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 			}
 			for friend in friends
 		]
-	
+    
 	return ReceiptRead(
 		id=receipt.id,
 		user_id=receipt.user_id,
 		receipt_url=receipt.receipt_url,
 		restaurant_name=receipt.restaurant_name,
+    subtotal=receipt.subtotal,
 		total_amount=receipt.total_amount,
 		tax=receipt.tax,
 		service_charge=receipt.service_charge,
@@ -194,6 +197,7 @@ def get_receipt_by_id(db: Session, receipt_id: int, user_id: int) -> Optional[Re
 		items=items_data,
 		friends=friends
 	)
+
 
 def get_user_receipts(db: Session, user_id: int, skip: int = 0, limit: int = 100) -> List[ReceiptRead]:
 	"""Get all receipts for a user with pagination, sorted by latest first"""
