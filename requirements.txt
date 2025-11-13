@@ -13,3 +13,4 @@ python-multipart
 google-genai
 pillow
 minio
+google-api-core
