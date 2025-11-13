@@ -217,13 +217,17 @@ def calculate_receipt_splits(db: Session, receipt_id: int, user_id: int) -> Opti
 
 def analyze_receipt(image_data: bytes) -> ReceiptBase:
 	"""Analyze receipt image and return AI response as ReceiptBase model"""
+	print("analyze_receipt called")
 	prompt = create_analysis_prompt()
+	print("ANALYSIS PROMPT:\n", prompt)
 	ai_response_dict = get_ai_response(contents=[prompt, image_data], response_schema=ReceiptBase)
+	print("AI RESPONSE:\n", ai_response_dict)
 	
 	# Convert the dictionary response to ReceiptBase model
 	return ReceiptBase(**ai_response_dict)
 
 def create_receipt_with_items(db: Session, receipt_data: ReceiptBase, user_id: int, receipt_url: str = None, friend_ids: List[int] = None) -> dict:
+	print("create_receipt_with_items called")
 	"""Create a receipt with all its items and variations in the database, and return the receipt info including friend objects"""
 	
 	db_receipt = Receipt(

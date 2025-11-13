@@ -32,7 +32,7 @@ def analyze_and_create_receipt(
 			friend_ids=friend_ids
 		)
 	except Exception as e:
-		# Optionally log the error here
+		print(f"Error in analyze_and_create_receipt: {e}")
 		pass
 
 @router.post("", status_code=201)
